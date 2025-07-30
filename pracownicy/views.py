@@ -21,7 +21,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import io
-from .models import Pracownik, Zespol, Stanowisko, Rola
+from .models import Pracownik, Zespol, Stanowisko, Rola, DzienPracy
 from .serializers import CVUploadSerializer, PracownikSerializer, ZespolSerializer
 from .validators import validate_pesel
 
