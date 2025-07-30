@@ -208,3 +208,7 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://renewed-miracle-baza.up.railway.app",
+]
