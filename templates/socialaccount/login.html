@@ -1,0 +1,224 @@
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logowanie przez Google - Baza Pracowników</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .social-login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .social-login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4285f4, #34a853, #fbbc05, #ea4335);
+        }
+        
+        .google-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 30px;
+            background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0xNy42NCA5LjIwNWMwLS42MzktLjA1Ny0xLjI1Mi0uMTY0LTEuODQxSDl2My40ODFoNC44NDRjLS4yMDkgMS4xMjUtLjg0MyAyLjA3OC0xLjc5NiAyLjcxN3YyLjI1OGgzLjA5MmMxLjctMS4yNzUgMi42OC0zLjE2IDIuNjgtNS4zNzVoMHoiIGZpbGw9IiM0Mjg1RjQiLz48cGF0aCBkPSJNOSAzLjc4OWMxLjUzIDAgMi45MDYuNTI4IDMuOTg4IDEuNTY3TDE2IDE4VDE1IDM5bC0zLjAzNy0zLjAzN0MxMC44OCA5IDguNTcgOSA3LjUgOS41aDIuNSIgZmlsbD0iIzQyODVGNCIvPjxwYXRoIGQ9Ik0zLjk2NCAxMC43MUMzLjc4NCAxMC4wNCAzLjY4IDkuMzMzIDMuNjggOC42MDRjMC0uNzI5LjEwNC0xLjQzNi4yODQtMi4xMDZWNC4yOTRILjk1NUMuMzQ3IDUuNTE4IDAgNy4wNjYgMCA4LjY4NGMwIDEuNjE4LjM0NyAzLjE2Ni45NTUgNC4zOWwzLjAwOS0yLjM2NHoiIGZpbGw9IiNGQkJDMDUiLz48cGF0aCBkPSJNOSAxMy45NGMtMS40MjcgMC0yLjY4NC0uNDg3LTMuNjgtMS4zMDFsLTMuMDA5IDIuMzY0Yy45NzMgMy4wNjMgMy45NjQgNS4yNzMgNi42ODkgNS4yNzMgMi4wNzggMCAzLjg0NS0uNjg5IDUuMTI1LTEuODYzTDEzLjA5IDEyLjJjLS44NDMuNTM0LTEuOTI4Ljg0LTMuMDkuODR6IiBmaWxsPSIjMzRBODUzIi8+PHBhdGggZD0iTTkgMy43ODljMS41MyAwIDIuOTA2LjUyOCAzLjk4OCAxLjU2N0wxNi4wOCAyLjQ0QzE0LjU0My45IDEyLjE4MyAwIDkgMEMzLjM0NSAwIDEuMzQ2IDMuNjY5IDEuMzQ2IDguMzY3IDEuMzQ2IDkuNTA4IDEuNTIgMTAuNjAzIDEuODQzIDExLjYzNWgzLjEwMmMtLjMyMi0xLjAzMi0uNDk1LTIuMTI3LS40OTUtMy4yNjggMC0xLjczNyAxLjQzLTMuMTQ0IDMuMTktMy4xNDR6IiBmaWxsPSIjRUE0MzM1Ii8+PC9nPjwvc3ZnPg==') no-repeat center;
+            background-size: contain;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 40px;
+            line-height: 1.5;
+        }
+        
+        .provider-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .provider-list li {
+            margin-bottom: 20px;
+        }
+        
+        .provider-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 16px 24px;
+            background: #fff;
+            color: #757575;
+            border: 2px solid #dadce0;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .provider-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            transition: left 0.5s;
+        }
+        
+        .provider-btn:hover::before {
+            left: 100%;
+        }
+        
+        .provider-btn:hover {
+            background: #f8f9fa;
+            border-color: #1a73e8;
+            box-shadow: 0 6px 16px rgba(26,115,232,0.2);
+            transform: translateY(-2px);
+            color: #1a73e8;
+        }
+        
+        .provider-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .provider-logo {
+            width: 24px;
+            height: 24px;
+            margin-right: 16px;
+            background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0yMy4yIDEyLjI3MjdjMC0uODUxNy0uMDc2LTEuNjY5My0uMjE4Ny0yLjQ1NDVIMTJWMTQuNjRoNi4yNzI3Yy0uMjc4NSAxLjUtMS4xMjQgMi43NzI3LTIuMzk0NSAzLjYyNzN2My4wMTA5aDQuMTIzNmMyLjI2NjctMS43IDE0LjAzNi00LjIxODIgMy41NzI3LTcuMTY1NXYweiIgZmlsbD0iIzQyODVGNCIvPjxwYXRoIGQ9Ik0xMiAyNGM0LjA4IDAgNy40OC0xLjM0NTUgOS45ODEzLTMuNjEwOWwtNC4xMjM2LTMuMDEwOWMtMS4zMTI1Ljg4LTIuOTczNCAxLjQtNS44NTc3IDEuNDAiIGZpbGw9IiM0Mjg1RjQiLz48cGF0aCBkPSJNNS4yODczIDYuMjE4MkM1Ljg0NDcgOC4yNDU1IDUuODQ0NyA5Ljg2NjMgNS4yODczIDEyLjIzNjEgNS4yODczIDEzLjA1NzMgNS4zNjUzIDEzLjkwMjYgNS41OTM0IDE0LjcyMzRWMTguMzQ1NkgyLjExNjVjLTEuNjI2OC0zLjUwNTMtMS42MjY4LTcuNjI5IDAtMTEuMTMzOWwzLjE3MDgtMy45Mzg0eiIgZmlsbD0iI0ZCQkMwNSIvPjxwYXRoIGQ9Ik0xMiAxMC45MDkxYzIuMDQgMCAzLjg3NDcuNzAyIDUuMzE4NCAyLjA4djJsMy41OTItMy41OTJjLTIuMTYtMS44OS02LjE4LTMuMTE4Mi05LjM4MDcgMC02LjY1NTQgMC0xMi41OTA5IDQuODg1NC0xMi41OTA5IDEwLjkwOTEgMCAxLjYxNjUuMzM3NiAzLjE3MDguOTUyOCA0LjY1NzJoMy4xNzA4Yy0uNDMwMy0xLjM3NjMtLjY1OTItMi44MzktLjY1OTItNC4zNzA5IDAtMi4zMjE2IDEuOTA2My00LjIxNzcgNC4yMTc3LTQuMjE3N3ptMCAxLjkwOTFjLTEuMjc0NSAwLTIuMzA5MS45OTczLTIuMzA5MSAyLjI1NDVzMS4wMzQ2IDIuMjU0NSAyLjMwOTEgMi4yNTQ1IDIuMzA5MS0uOTk3MyAyLjMwOTEtMi4yNTQ1LS4xMTIwOC0yLjI1NDUtMi4zMDkxLTIuMjU0NXoiIGZpbGw9IiMzNEE4NTMiLz48cGF0aCBkPSJNMTIgMGMzLjUyIDAgNi42MDgzIDEuMjMzIDkuMDU3OSAzLjI2ODNMMTcuOTYxNyA2LjMzNkMxNS42NTI3IDQuMTI3IDEzLjEzNTMgMy4wIDEyIDNjLTQuODI0NyAwLTkuMzgwNyAzLjMzOTctMTEuNDczNCAyLjU1MzJsLTMuMTcwOC0zLjkzODRDMi4zNTk0IDYuMjk3IDYuNzY4NSAwIDEyIDB6IiBmaWxsPSIjRUE0MzM1Ii8+PC9nPjwvc3ZnPg==');
+            background-size: contain;
+        }
+        
+        .back-link {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .back-link a {
+            color: #1a73e8;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .back-link a:hover {
+            color: #1557b0;
+            text-decoration: underline;
+        }
+        
+        .security-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 30px;
+            border-left: 4px solid #34a853;
+        }
+        
+        .security-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+        
+        .security-info .icon {
+            color: #34a853;
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 480px) {
+            .social-login-container {
+                padding: 30px 25px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .provider-btn {
+                padding: 14px 20px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="social-login-container">
+        <div class="google-icon"></div>
+        <h1>Logowanie przez Google</h1>
+        <p class="subtitle">Wybierz konto Google, aby kontynuować do Bazy Pracowników</p>
+        
+        <div class="security-info">
+            <p><span class="icon">🔒</span>Bezpieczne logowanie za pomocą konta Google</p>
+        </div>
+        
+        {% if process == "connect" %}
+        <p>Łączysz konto Google z istniejącym kontem w systemie.</p>
+        {% endif %}
+        
+        {% if form %}
+        <form method="post">
+            {% csrf_token %}
+            <ul class="provider-list">
+                {% for provider in providers %}
+                <li>
+                    <a href="{% provider_login_url provider.id process=process %}" class="provider-btn">
+                        <div class="provider-logo"></div>
+                        Kontynuuj z {{ provider.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </form>
+        {% endif %}
+        
+        <div class="back-link">
+            <a href="{% url 'login' %}">← Powrót do logowania</a>
+        </div>
+    </div>
+</body>
+</html>

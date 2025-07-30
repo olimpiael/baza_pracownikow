@@ -1,0 +1,752 @@
+{% extends 'base.html' %}
+
+{% block title %}Dokumenty - {{ pracownik.imie }} {{ pracownik.nazwisko }}{% endblock %}
+
+{% block content %}
+<style>
+    .documents-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .header-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .employee-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .employee-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 30px;
+        font-weight: bold;
+    }
+    
+    .employee-details h1 {
+        margin: 0;
+        color: #333;
+        font-size: 2.5em;
+    }
+    
+    .employee-details p {
+        margin: 5px 0;
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    .progress-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .progress-bar {
+        background: #f0f0f0;
+        border-radius: 10px;
+        height: 20px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        border-radius: 10px;
+        transition: width 1s ease;
+        position: relative;
+    }
+    
+    .progress-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+    }
+    
+    .documents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    
+    .document-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .document-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    }
+    
+    .document-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .document-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .document-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+    
+    .icon-cv { background: linear-gradient(45deg, #FF6B6B, #FF8E53); }
+    .icon-contract { background: linear-gradient(45deg, #4ECDC4, #44A08D); }
+    .icon-certificate { background: linear-gradient(45deg, #FFD93D, #FF8F00); }
+    .icon-diploma { background: linear-gradient(45deg, #6C63FF, #8B5FBF); }
+    .icon-photo { background: linear-gradient(45deg, #FF6B9D, #C44569); }
+    .icon-other { background: linear-gradient(45deg, #95A5A6, #7F8C8D); }
+    
+    .document-title {
+        flex: 1;
+    }
+    
+    .document-title h3 {
+        margin: 0 0 5px 0;
+        color: #333;
+        font-size: 1.4em;
+    }
+    
+    .document-title p {
+        margin: 0;
+        color: #666;
+        font-size: 0.9em;
+    }
+    
+    .document-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .status-uploaded { background: #4CAF50; }
+    .status-missing { background: #f44336; }
+    
+    .document-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-success {
+        background: linear-gradient(45deg, #4CAF50, #8BC34A);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+    }
+    
+    .btn-danger {
+        background: linear-gradient(45deg, #f44336, #FF6B6B);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 2px solid #e9ecef;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+    }
+    
+    .file-input {
+        display: none;
+    }
+    
+    .file-upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .file-upload-area:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .file-upload-area.dragover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .current-file {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .file-info {
+        flex: 1;
+    }
+    
+    .file-name {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .file-size {
+        font-size: 12px;
+        color: #666;
+    }
+    
+    .back-button {
+        margin-bottom: 20px;
+    }
+    
+    .messages {
+        margin-bottom: 20px;
+    }
+    
+    .message {
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+    
+    .message.success {
+        background: linear-gradient(45deg, #d4edda, #c3e6cb);
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+        background: linear-gradient(45deg, #f8d7da, #f5c6cb);
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    @media (max-width: 768px) {
+        .documents-container {
+            padding: 15px;
+        }
+        
+        .documents-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .employee-info {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .document-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="documents-container">
+    <div class="back-button">
+        <a href="{% url 'lista_pracownikow' %}" class="btn btn-secondary">
+            ← Powrót do listy pracowników
+        </a>
+    </div>
+
+    <!-- Wyświetlanie komunikatów -->
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Sekcja nagłówka -->
+    <div class="header-section">
+        <div class="employee-info">
+            <div class="employee-avatar">
+                {% if pracownik.zdjecie %}
+                    <img src="{{ pracownik.zdjecie.url }}" alt="Zdjęcie" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                {% else %}
+                    {{ pracownik.imie.0 }}{{ pracownik.nazwisko.0 }}
+                {% endif %}
+            </div>
+            <div class="employee-details">
+                <h1>{{ pracownik.imie }} {{ pracownik.nazwisko }}</h1>
+                <p>{{ pracownik.stanowisko.nazwa }}</p>
+                <p>{{ pracownik.zespol.nazwa }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sekcja postępu -->
+    <div class="progress-section">
+        <div class="progress-header">
+            <h3>Kompletność dokumentów</h3>
+            <span>{{ pracownik.get_documents_count }}/6 dokumentów</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {% widthratio pracownik.get_documents_count 6 100 %}%;">
+                <div class="progress-text">{{ pracownik.get_documents_count }}/6</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Siatka dokumentów -->
+    <div class="documents-grid">
+        <!-- CV -->
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon icon-cv">📄</div>
+                <div class="document-title">
+                    <h3>Curriculum Vitae</h3>
+                    <p>Życiorys zawodowy</p>
+                </div>
+            </div>
+            <div class="document-status">
+                <div class="status-indicator {% if pracownik.cv %}status-uploaded{% else %}status-missing{% endif %}"></div>
+                <span>{% if pracownik.cv %}Załadowane{% else %}Brak pliku{% endif %}</span>
+            </div>
+            
+            {% if pracownik.cv %}
+                <div class="current-file">
+                    <div class="file-info">
+                        <div class="file-name">{{ pracownik.cv.name|slice:"11:" }}</div>
+                        <div class="file-size">{{ pracownik.cv.size|filesizeformat }}</div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="document_type" value="cv">
+                <div class="file-upload-area" onclick="document.getElementById('cv-file').click()">
+                    <p>📁 Kliknij lub przeciągnij plik CV</p>
+                    <small>Obsługiwane formaty: PDF, DOC, DOCX</small>
+                </div>
+                <input type="file" id="cv-file" name="cv" class="file-input" accept=".pdf,.doc,.docx" onchange="this.form.submit()">
+                
+                <div class="document-actions">
+                    {% if pracownik.cv %}
+                        <a href="{% url 'download_document' pracownik.id 'cv' %}" class="btn btn-success">
+                            📥 Pobierz
+                        </a>
+                        <a href="{% url 'delete_document' pracownik.id 'cv' %}" class="btn btn-danger" 
+                           onclick="return confirm('Czy na pewno chcesz usunąć ten dokument?')">
+                            🗑️ Usuń
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Umowa pracy -->
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon icon-contract">📋</div>
+                <div class="document-title">
+                    <h3>Umowa pracy</h3>
+                    <p>Umowa o pracę/zlecenie</p>
+                </div>
+            </div>
+            <div class="document-status">
+                <div class="status-indicator {% if pracownik.umowa_pracy %}status-uploaded{% else %}status-missing{% endif %}"></div>
+                <span>{% if pracownik.umowa_pracy %}Załadowane{% else %}Brak pliku{% endif %}</span>
+            </div>
+            
+            {% if pracownik.umowa_pracy %}
+                <div class="current-file">
+                    <div class="file-info">
+                        <div class="file-name">{{ pracownik.umowa_pracy.name|slice:"15:" }}</div>
+                        <div class="file-size">{{ pracownik.umowa_pracy.size|filesizeformat }}</div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="document_type" value="umowa_pracy">
+                <div class="file-upload-area" onclick="document.getElementById('umowa-file').click()">
+                    <p>📁 Kliknij lub przeciągnij umowę pracy</p>
+                    <small>Obsługiwane formaty: PDF, DOC, DOCX</small>
+                </div>
+                <input type="file" id="umowa-file" name="umowa_pracy" class="file-input" accept=".pdf,.doc,.docx" onchange="this.form.submit()">
+                
+                <div class="document-actions">
+                    {% if pracownik.umowa_pracy %}
+                        <a href="{% url 'download_document' pracownik.id 'umowa_pracy' %}" class="btn btn-success">
+                            📥 Pobierz
+                        </a>
+                        <a href="{% url 'delete_document' pracownik.id 'umowa_pracy' %}" class="btn btn-danger" 
+                           onclick="return confirm('Czy na pewno chcesz usunąć ten dokument?')">
+                            🗑️ Usuń
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Świadectwo pracy -->
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon icon-certificate">🏆</div>
+                <div class="document-title">
+                    <h3>Świadectwo pracy</h3>
+                    <p>Dokumenty z poprzednich miejsc pracy</p>
+                </div>
+            </div>
+            <div class="document-status">
+                <div class="status-indicator {% if pracownik.swiadectwo_pracy %}status-uploaded{% else %}status-missing{% endif %}"></div>
+                <span>{% if pracownik.swiadectwo_pracy %}Załadowane{% else %}Brak pliku{% endif %}</span>
+            </div>
+            
+            {% if pracownik.swiadectwo_pracy %}
+                <div class="current-file">
+                    <div class="file-info">
+                        <div class="file-name">{{ pracownik.swiadectwo_pracy.name|slice:"18:" }}</div>
+                        <div class="file-size">{{ pracownik.swiadectwo_pracy.size|filesizeformat }}</div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="document_type" value="swiadectwo_pracy">
+                <div class="file-upload-area" onclick="document.getElementById('swiadectwo-file').click()">
+                    <p>📁 Kliknij lub przeciągnij świadectwo pracy</p>
+                    <small>Obsługiwane formaty: PDF, DOC, DOCX</small>
+                </div>
+                <input type="file" id="swiadectwo-file" name="swiadectwo_pracy" class="file-input" accept=".pdf,.doc,.docx" onchange="this.form.submit()">
+                
+                <div class="document-actions">
+                    {% if pracownik.swiadectwo_pracy %}
+                        <a href="{% url 'download_document' pracownik.id 'swiadectwo_pracy' %}" class="btn btn-success">
+                            📥 Pobierz
+                        </a>
+                        <a href="{% url 'delete_document' pracownik.id 'swiadectwo_pracy' %}" class="btn btn-danger" 
+                           onclick="return confirm('Czy na pewno chcesz usunąć ten dokument?')">
+                            🗑️ Usuń
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Dyplom -->
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon icon-diploma">🎓</div>
+                <div class="document-title">
+                    <h3>Dyplom/Certyfikat</h3>
+                    <p>Dokumenty potwierdzające wykształcenie</p>
+                </div>
+            </div>
+            <div class="document-status">
+                <div class="status-indicator {% if pracownik.dyplom %}status-uploaded{% else %}status-missing{% endif %}"></div>
+                <span>{% if pracownik.dyplom %}Załadowane{% else %}Brak pliku{% endif %}</span>
+            </div>
+            
+            {% if pracownik.dyplom %}
+                <div class="current-file">
+                    <div class="file-info">
+                        <div class="file-name">{{ pracownik.dyplom.name|slice:"8:" }}</div>
+                        <div class="file-size">{{ pracownik.dyplom.size|filesizeformat }}</div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="document_type" value="dyplom">
+                <div class="file-upload-area" onclick="document.getElementById('dyplom-file').click()">
+                    <p>📁 Kliknij lub przeciągnij dyplom/certyfikat</p>
+                    <small>Obsługiwane formaty: PDF, DOC, DOCX, JPG, PNG</small>
+                </div>
+                <input type="file" id="dyplom-file" name="dyplom" class="file-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                
+                <div class="document-actions">
+                    {% if pracownik.dyplom %}
+                        <a href="{% url 'download_document' pracownik.id 'dyplom' %}" class="btn btn-success">
+                            📥 Pobierz
+                        </a>
+                        <a href="{% url 'delete_document' pracownik.id 'dyplom' %}" class="btn btn-danger" 
+                           onclick="return confirm('Czy na pewno chcesz usunąć ten dokument?')">
+                            🗑️ Usuń
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Zdjęcie -->
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon icon-photo">📸</div>
+                <div class="document-title">
+                    <h3>Zdjęcie pracownika</h3>
+                    <p>Zdjęcie do dokumentów/identyfikatora</p>
+                </div>
+            </div>
+            <div class="document-status">
+                <div class="status-indicator {% if pracownik.zdjecie %}status-uploaded{% else %}status-missing{% endif %}"></div>
+                <span>{% if pracownik.zdjecie %}Załadowane{% else %}Brak pliku{% endif %}</span>
+            </div>
+            
+            {% if pracownik.zdjecie %}
+                <div class="current-file">
+                    <div class="file-info">
+                        <div class="file-name">{{ pracownik.zdjecie.name|slice:"8:" }}</div>
+                        <div class="file-size">{{ pracownik.zdjecie.size|filesizeformat }}</div>
+                    </div>
+                    <img src="{{ pracownik.zdjecie.url }}" alt="Podgląd" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;" onclick="showImagePreview('{{ pracownik.zdjecie.url }}', 'Zdjęcie pracownika')">
+                </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="document_type" value="zdjecie">
+                <div class="file-upload-area" onclick="document.getElementById('zdjecie-file').click()">
+                    <p>📁 Kliknij lub przeciągnij zdjęcie</p>
+                    <small>Obsługiwane formaty: JPG, PNG, GIF</small>
+                </div>
+                <input type="file" id="zdjecie-file" name="zdjecie" class="file-input" accept=".jpg,.jpeg,.png,.gif" onchange="this.form.submit()">
+                
+                <div class="document-actions">
+                    {% if pracownik.zdjecie %}
+                        <a href="{% url 'download_document' pracownik.id 'zdjecie' %}" class="btn btn-success">
+                            📥 Pobierz
+                        </a>
+                        <button type="button" class="btn btn-primary" onclick="showImagePreview('{{ pracownik.zdjecie.url }}', 'Zdjęcie pracownika')">
+                            👁️ Podgląd
+                        </button>
+                        <a href="{% url 'delete_document' pracownik.id 'zdjecie' %}" class="btn btn-danger" 
+                           onclick="return confirm('Czy na pewno chcesz usunąć ten dokument?')">
+                            🗑️ Usuń
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Inne dokumenty -->
+        <div class="document-card">
+            <div class="document-header">
+                <div class="document-icon icon-other">📁</div>
+                <div class="document-title">
+                    <h3>Inne dokumenty</h3>
+                    <p>Dodatkowe pliki i dokumenty</p>
+                </div>
+            </div>
+            <div class="document-status">
+                <div class="status-indicator {% if pracownik.inne_dokumenty %}status-uploaded{% else %}status-missing{% endif %}"></div>
+                <span>{% if pracownik.inne_dokumenty %}Załadowane{% else %}Brak pliku{% endif %}</span>
+            </div>
+            
+            {% if pracownik.inne_dokumenty %}
+                <div class="current-file">
+                    <div class="file-info">
+                        <div class="file-name">{{ pracownik.inne_dokumenty.name|slice:"16:" }}</div>
+                        <div class="file-size">{{ pracownik.inne_dokumenty.size|filesizeformat }}</div>
+                    </div>
+                </div>
+            {% endif %}
+            
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="document_type" value="inne_dokumenty">
+                <div class="file-upload-area" onclick="document.getElementById('inne-file').click()">
+                    <p>📁 Kliknij lub przeciągnij inne dokumenty</p>
+                    <small>Obsługiwane formaty: PDF, DOC, DOCX, JPG, PNG</small>
+                </div>
+                <input type="file" id="inne-file" name="inne_dokumenty" class="file-input" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                
+                <div class="document-actions">
+                    {% if pracownik.inne_dokumenty %}
+                        <a href="{% url 'download_document' pracownik.id 'inne_dokumenty' %}" class="btn btn-success">
+                            📥 Pobierz
+                        </a>
+                        <a href="{% url 'delete_document' pracownik.id 'inne_dokumenty' %}" class="btn btn-danger" 
+                           onclick="return confirm('Czy na pewno chcesz usunąć ten dokument?')">
+                            🗑️ Usuń
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modal dla podglądu obrazów
+function showImagePreview(src, title) {
+    // Usuń istniejący modal jeśli istnieje
+    const existingModal = document.getElementById('imageModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Utwórz modal
+    const modal = document.createElement('div');
+    modal.id = 'imageModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        cursor: pointer;
+    `;
+    
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = `
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    `;
+    
+    const caption = document.createElement('div');
+    caption.textContent = title;
+    caption.style.cssText = `
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        font-size: 16px;
+    `;
+    
+    modal.appendChild(img);
+    modal.appendChild(caption);
+    document.body.appendChild(modal);
+    
+    // Zamknij modal po kliknięciu
+    modal.addEventListener('click', function() {
+        modal.remove();
+    });
+    
+    // Zamknij modal po naciśnięciu ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            modal.remove();
+        }
+    }, { once: true });
+}
+
+// Automatyczne odświeżanie progres bar
+document.addEventListener('DOMContentLoaded', function() {
+    const progressBar = document.querySelector('.progress-fill');
+    if (progressBar) {
+        setTimeout(() => {
+            progressBar.style.width = progressBar.style.width;
+        }, 100);
+    }
+});
+</script>
+{% endblock %}

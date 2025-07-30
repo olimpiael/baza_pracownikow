@@ -1,0 +1,622 @@
+{% load edit_tags %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Statystyk - Baza Pracowników</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin: 0 0 10px 0;
+        }
+        
+        .user-info {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .navigation {
+            margin-top: 15px;
+        }
+        
+        .nav-link {
+            color: #007bff;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+        
+        .role-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .role-badge.admin {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .role-badge.hr {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .role-badge.manager {
+            background-color: #ffc107;
+            color: #333;
+        }
+        
+        .role-badge.employee {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        /* Dashboard Statystyk */
+        .dashboard-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .dashboard-title {
+            color: #333;
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .dashboard-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .dashboard-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .dashboard-btn:hover {
+            background-color: #0056b3;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .dashboard-btn.pdf {
+            background-color: #dc3545;
+        }
+        
+        .dashboard-btn.pdf:hover {
+            background-color: #c82333;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-title {
+            font-size: 14px;
+            color: #666;
+            margin: 0 0 10px 0;
+            font-weight: bold;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            color: #333;
+            margin: 0;
+            font-weight: bold;
+        }
+        
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .chart-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            color: #333;
+            margin: 0 0 15px 0;
+            text-align: center;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .last-update {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            text-align: center;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Dashboard Statystyk</h1>
+        {% if current_user %}
+            <div class="user-info">
+                <strong>Zalogowano jako:</strong> {{ current_user.imie }} {{ current_user.nazwisko }} 
+                <span class="role-badge {{ current_user.rola }}">{{ user_role }}</span>
+            </div>
+        {% endif %}
+        <div class="navigation">
+            <a href="{% url 'lista_pracownikow' %}" class="nav-link">← Powrót do listy pracowników</a>
+            {% if current_user.rola == 'admin' or current_user.rola == 'hr' %}
+                | <a href="{% url 'generate_pdf_report' %}" class="nav-link">📄 Raport PDF</a>
+            {% endif %}
+            | <a href="/accounts/logout/" class="nav-link">Wyloguj się</a>
+        </div>
+    </div>
+    
+    <!-- Dashboard Statystyk -->
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Statystyki w czasie rzeczywistym</h2>
+            <div class="dashboard-controls">
+                <button onclick="refreshStats()" class="dashboard-btn">🔄 Odśwież</button>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 class="stat-title">Łączna liczba pracowników</h3>
+                <p class="stat-value" id="totalEmployees">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Średni wiek</h3>
+                <p class="stat-value" id="averageAge">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Pracownicy z przełożonym</h3>
+                <p class="stat-value" id="employeesWithManager">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Średnie wynagrodzenie</h3>
+                <p class="stat-value" id="averageSalary">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Łączna suma wynagrodzeń</h3>
+                <p class="stat-value" id="totalSalaries">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Najwyższe wynagrodzenie</h3>
+                <p class="stat-value" id="maxSalary">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Najniższe wynagrodzenie</h3>
+                <p class="stat-value" id="minSalary">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Średnia ocena pracowników</h3>
+                <p class="stat-value" id="averageRating">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Pracownicy z oceną</h3>
+                <p class="stat-value" id="ratedEmployees">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Wymagają oceny</h3>
+                <p class="stat-value" id="needEvaluation">-</p>
+            </div>
+            <div class="stat-card">
+                <h3 class="stat-title">Ostatnia aktualizacja</h3>
+                <p class="stat-value" id="lastUpdate">-</p>
+            </div>
+        </div>
+        
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3 class="chart-title">Rozkład zespołów</h3>
+                <div class="chart-container">
+                    <canvas id="teamsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">Rozkład ról</h3>
+                <div class="chart-container">
+                    <canvas id="rolesChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3 class="chart-title">Rozkład stanowisk</h3>
+                <div class="chart-container">
+                    <canvas id="positionsChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">Rozkład ocen pracowników</h3>
+                <div class="chart-container">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="charts-container">
+            <div class="chart-card">
+                <h3 class="chart-title">Średnie wynagrodzenia według stanowisk</h3>
+                <div class="chart-container">
+                    <canvas id="salariesChart"></canvas>
+                </div>
+                <div class="loading" id="statsLoading">Ładowanie statystyk...</div>
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Statystyki Dashboard
+        let teamsChart, rolesChart, positionsChart, salariesChart, ratingsChart;
+        
+        function initializeStats() {
+            loadStats();
+            // Odświeżaj statystyki co 30 sekund
+            setInterval(loadStats, 30000);
+        }
+        
+        function loadStats() {
+            document.getElementById('statsLoading').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            
+            fetch('/dashboard/stats/')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    updateStatsCards(data);
+                    updateCharts(data);
+                    document.getElementById('statsLoading').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Błąd pobierania statystyk:', error);
+                    document.getElementById('statsLoading').style.display = 'none';
+                    document.getElementById('errorMessage').textContent = `Błąd ładowania statystyk: ${error.message}`;
+                    document.getElementById('errorMessage').style.display = 'block';
+                });
+        }
+        
+        function updateStatsCards(data) {
+            document.getElementById('totalEmployees').textContent = data.total_pracownicy || '0';
+            document.getElementById('averageAge').textContent = data.sredni_wiek ? `${data.sredni_wiek} lat` : 'Brak danych';
+            document.getElementById('employeesWithManager').textContent = data.pracownicy_z_przelozonym || '0';
+            
+            // Statystyki wynagrodzeń
+            if (data.zarobki) {
+                document.getElementById('averageSalary').textContent = data.zarobki.srednie ? `${data.zarobki.srednie.toLocaleString('pl-PL')} PLN` : 'Brak danych';
+                document.getElementById('totalSalaries').textContent = data.zarobki.suma ? `${data.zarobki.suma.toLocaleString('pl-PL')} PLN` : 'Brak danych';
+                document.getElementById('maxSalary').textContent = data.zarobki.max ? `${data.zarobki.max.toLocaleString('pl-PL')} PLN` : 'Brak danych';
+                document.getElementById('minSalary').textContent = data.zarobki.min ? `${data.zarobki.min.toLocaleString('pl-PL')} PLN` : 'Brak danych';
+            } else {
+                document.getElementById('averageSalary').textContent = 'Brak danych';
+                document.getElementById('totalSalaries').textContent = 'Brak danych';
+                document.getElementById('maxSalary').textContent = 'Brak danych';
+                document.getElementById('minSalary').textContent = 'Brak danych';
+            }
+            
+            // Statystyki ocen
+            if (data.oceny) {
+                document.getElementById('averageRating').textContent = data.oceny.srednia ? 
+                    `${data.oceny.srednia} ⭐` : 'Brak danych';
+                document.getElementById('ratedEmployees').textContent = data.oceny.liczba_ocenionych || '0';
+                document.getElementById('needEvaluation').textContent = data.oceny.wymagaja_oceny || '0';
+            } else {
+                document.getElementById('averageRating').textContent = 'Brak danych';
+                document.getElementById('ratedEmployees').textContent = '0';
+                document.getElementById('needEvaluation').textContent = '0';
+            }
+            
+            document.getElementById('lastUpdate').textContent = data.ostatnia_aktualizacja || '-';
+        }
+        
+        function updateCharts(data) {
+            // Wykres zespołów
+            if (teamsChart) {
+                teamsChart.destroy();
+            }
+            
+            const teamsCtx = document.getElementById('teamsChart').getContext('2d');
+            teamsChart = new Chart(teamsCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.zespoly.map(item => item.name),
+                    datasets: [{
+                        data: data.zespoly.map(item => item.count),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF',
+                            '#FF9F40',
+                            '#FF6384',
+                            '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Wykres ról
+            if (rolesChart) {
+                rolesChart.destroy();
+            }
+            
+            const rolesCtx = document.getElementById('rolesChart').getContext('2d');
+            rolesChart = new Chart(rolesCtx, {
+                type: 'pie',
+                data: {
+                    labels: data.role.map(item => item.name),
+                    datasets: [{
+                        data: data.role.map(item => item.count),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF',
+                            '#FF9F40'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Wykres stanowisk
+            if (positionsChart) {
+                positionsChart.destroy();
+            }
+            
+            const positionsCtx = document.getElementById('positionsChart').getContext('2d');
+            positionsChart = new Chart(positionsCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.stanowiska.map(item => item.name),
+                    datasets: [{
+                        label: 'Liczba pracowników',
+                        data: data.stanowiska.map(item => item.count),
+                        backgroundColor: '#36A2EB',
+                        borderColor: '#36A2EB',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Wykres wynagrodzeń według stanowisk
+            if (salariesChart) {
+                salariesChart.destroy();
+            }
+            
+            if (data.zarobki && data.zarobki.stanowiska && data.zarobki.stanowiska.length > 0) {
+                const salariesCtx = document.getElementById('salariesChart').getContext('2d');
+                salariesChart = new Chart(salariesCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.zarobki.stanowiska.map(item => item.name),
+                        datasets: [{
+                            label: 'Średnie wynagrodzenie (PLN)',
+                            data: data.zarobki.stanowiska.map(item => item.average_salary),
+                            backgroundColor: '#28a745',
+                            borderColor: '#28a745',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString('pl-PL') + ' PLN';
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const salary = context.parsed.y;
+                                        const count = data.zarobki.stanowiska[context.dataIndex].count;
+                                        return `Średnia: ${salary.toLocaleString('pl-PL')} PLN (${count} osób)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Wykres rozkładu ocen
+            if (ratingsChart) {
+                ratingsChart.destroy();
+            }
+            
+            if (data.oceny && data.oceny.rozklad && data.oceny.rozklad.length > 0) {
+                const ratingsCtx = document.getElementById('ratingsChart').getContext('2d');
+                const ratingLabels = data.oceny.rozklad.map(item => `${item.rating} ⭐`);
+                const ratingColors = [
+                    '#FF4444', // 1 gwiazda - czerwony
+                    '#FF8800', // 2 gwiazdy - pomarańczowy
+                    '#FFD700', // 3 gwiazdy - żółty
+                    '#44AA44', // 4 gwiazdy - zielony
+                    '#00AA00'  // 5 gwiazd - ciemnozielony
+                ];
+                
+                ratingsChart = new Chart(ratingsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ratingLabels,
+                        datasets: [{
+                            label: 'Liczba pracowników',
+                            data: data.oceny.rozklad.map(item => item.count),
+                            backgroundColor: data.oceny.rozklad.map(item => ratingColors[item.rating - 1]),
+                            borderColor: data.oceny.rozklad.map(item => ratingColors[item.rating - 1]),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const count = context.parsed.y;
+                                        const rating = data.oceny.rozklad[context.dataIndex].rating;
+                                        return `${count} pracowników z oceną ${rating} ⭐`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        function refreshStats() {
+            loadStats();
+        }
+        
+        // Inicjalizuj statystyki po załadowaniu strony
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeStats();
+        });
+    </script>
+</body>
+</html>

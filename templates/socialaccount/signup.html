@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rejestracja przez Google - Baza Pracowników</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .signup-container {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .signup-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4285f4, #34a853, #fbbc05, #ea4335);
+        }
+        
+        .success-animation {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+        
+        .success-animation::before {
+            content: "✓";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: #34a853;
+            animation: checkmark 0.6s ease-in-out;
+        }
+        
+        .success-animation::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 3px solid #34a853;
+            border-radius: 50%;
+            animation: circle 0.6s ease-in-out;
+        }
+        
+        @keyframes checkmark {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes circle {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .account-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            border-left: 4px solid #4285f4;
+        }
+        
+        .account-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .account-info p {
+            color: #666;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        
+        .account-info .email {
+            color: #4285f4;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .form-section {
+            text-align: left;
+            margin: 30px 0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 3px rgba(66,133,244,0.1);
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            text-align: center;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4285f4 0%, #1a73e8 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66,133,244,0.3);
+        }
+        
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #5f6368;
+            border: 2px solid #e1e5e9;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8f0fe;
+            border-color: #4285f4;
+            color: #1a73e8;
+        }
+        
+        .privacy-note {
+            background: #fff3e0;
+            border: 1px solid #ffcc02;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #663c00;
+            text-align: left;
+        }
+        
+        .privacy-note::before {
+            content: "ℹ️ ";
+            margin-right: 8px;
+        }
+        
+        @media (max-width: 480px) {
+            .signup-container {
+                padding: 30px 25px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <div class="success-animation"></div>
+        <h1>Połącz konto Google</h1>
+        <p class="subtitle">Twoje konto Google zostało pomyślnie zweryfikowane</p>
+        
+        {% if account %}
+        <div class="account-info">
+            <h3>Informacje o koncie Google</h3>
+            <p class="email">{{ account.extra_data.email }}</p>
+            <p>{{ account.extra_data.name }}</p>
+        </div>
+        {% endif %}
+        
+        {% if form %}
+        <div class="form-section">
+            <h3 style="margin-bottom: 20px; color: #333;">Uzupełnij dane konta</h3>
+            <form method="post" action="{% url 'socialaccount_signup' %}">
+                {% csrf_token %}
+                {% if form.email %}
+                <div class="form-group">
+                    <label for="{{ form.email.id_for_label }}">Email:</label>
+                    {{ form.email }}
+                </div>
+                {% endif %}
+                {% if form.username %}
+                <div class="form-group">
+                    <label for="{{ form.username.id_for_label }}">Nazwa użytkownika:</label>
+                    {{ form.username }}
+                </div>
+                {% endif %}
+                {% if form.first_name %}
+                <div class="form-group">
+                    <label for="{{ form.first_name.id_for_label }}">Imię:</label>
+                    {{ form.first_name }}
+                </div>
+                {% endif %}
+                {% if form.last_name %}
+                <div class="form-group">
+                    <label for="{{ form.last_name.id_for_label }}">Nazwisko:</label>
+                    {{ form.last_name }}
+                </div>
+                {% endif %}
+                
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-primary">Utwórz konto</button>
+                    <a href="{% url 'login' %}" class="btn btn-secondary">Anuluj</a>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="action-buttons">
+            <a href="{% url 'socialaccount_connections' %}" class="btn btn-primary">Zarządzaj kontami</a>
+            <a href="{% url 'login' %}" class="btn btn-secondary">Kontynuuj</a>
+        </div>
+        {% endif %}
+        
+        <div class="privacy-note">
+            Łącząc konto Google, wyrażasz zgodę na przetwarzanie danych zgodnie z polityką prywatności systemu.
+        </div>
+    </div>
+</body>
+</html>

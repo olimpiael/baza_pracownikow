@@ -1,0 +1,572 @@
+{% extends 'base.html' %}
+
+{% block title %}Historia obecności - {{ pracownik.imie }} {{ pracownik.nazwisko }}{% endblock %}
+
+{% block content %}
+<style>
+    .history-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .header-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .employee-info {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .employee-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 30px;
+        font-weight: bold;
+    }
+    
+    .employee-details h1 {
+        margin: 0;
+        color: #333;
+        font-size: 2.5em;
+    }
+    
+    .employee-details p {
+        margin: 5px 0;
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    .filters-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        align-items: end;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .filter-group label {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .filter-group input {
+        padding: 10px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .filter-group input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .timeline-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+    
+    .timeline-day {
+        margin-bottom: 30px;
+        position: relative;
+    }
+    
+    .timeline-day-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        margin-left: -30px;
+        border-left: 4px solid #667eea;
+    }
+    
+    .timeline-day-header h3 {
+        margin: 0;
+        color: #333;
+    }
+    
+    .timeline-day-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 10px;
+    }
+    
+    .day-stat {
+        text-align: center;
+        padding: 10px;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .day-stat-value {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    .day-stat-label {
+        font-size: 0.9em;
+        color: #666;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 15px;
+        padding-left: 30px;
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-left: -30px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 20px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid;
+    }
+    
+    .timeline-item.wejscie::before { border-color: #4CAF50; }
+    .timeline-item.wyjscie::before { border-color: #f44336; }
+    .timeline-item.przerwa_start::before { border-color: #FF9800; }
+    .timeline-item.przerwa_koniec::before { border-color: #2196F3; }
+    
+    .timeline-time {
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-status {
+        color: #666;
+        margin-bottom: 5px;
+    }
+    
+    .timeline-details {
+        font-size: 0.9em;
+        color: #999;
+    }
+    
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+        display: inline-block;
+    }
+    
+    .status-wejscie { background: #d4edda; color: #155724; }
+    .status-wyjscie { background: #f8d7da; color: #721c24; }
+    .status-przerwa_start { background: #fff3cd; color: #856404; }
+    .status-przerwa_koniec { background: #d1ecf1; color: #0c5460; }
+    
+    .summary-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .summary-card {
+        text-align: center;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+    }
+    
+    .summary-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .summary-label {
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 2px solid #e9ecef;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .navigation-links {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    @media (max-width: 768px) {
+        .history-container {
+            padding: 15px;
+        }
+        
+        .employee-info {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .timeline-day-stats {
+            grid-template-columns: 1fr;
+        }
+        
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .navigation-links {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="history-container">
+    <div class="header-section">
+        <div class="employee-info">
+            <div class="employee-avatar">
+                {% if pracownik.zdjecie %}
+                    <img src="{{ pracownik.zdjecie.url }}" alt="Zdjęcie" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                {% else %}
+                    {{ pracownik.imie.0 }}{{ pracownik.nazwisko.0 }}
+                {% endif %}
+            </div>
+            <div class="employee-details">
+                <h1>Historia obecności</h1>
+                <p><strong>{{ pracownik.imie }} {{ pracownik.nazwisko }}</strong></p>
+                <p>{{ pracownik.stanowisko.nazwa }} | {{ pracownik.zespol.nazwa }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="navigation-links">
+        <a href="{% url 'system_obecnosci' %}" class="btn btn-secondary">
+            ← Powrót do systemu
+        </a>
+        {% if current_pracownik.rola.poziom_uprawnien <= 3 %}
+        <a href="{% url 'raport_obecnosci' %}" class="btn btn-secondary">
+            📊 Raport zespołu
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Filtry -->
+    <div class="filters-section">
+        <h3>🔍 Filtry czasowe</h3>
+        <form method="get">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="data_od">Data od:</label>
+                    <input type="date" id="data_od" name="data_od" value="{{ data_od|date:'Y-m-d' }}">
+                </div>
+                <div class="filter-group">
+                    <label for="data_do">Data do:</label>
+                    <input type="date" id="data_do" name="data_do" value="{{ data_do|date:'Y-m-d' }}">
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">🔍 Filtruj</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Podsumowanie -->
+    {% if dni_pracy %}
+    <div class="summary-section">
+        <h3>📊 Podsumowanie okresu</h3>
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="summary-value">{{ dni_pracy|length }}</div>
+                <div class="summary-label">Dni z wpisami</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">
+                    {% with total_hours=0 %}
+                        {% for dzien in dni_pracy %}
+                            {% if dzien.czas_pracy %}
+                                {% with total_hours=total_hours|add:dzien.czas_pracy_godziny %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ total_hours|floatformat:1 }}h
+                    {% endwith %}
+                </div>
+                <div class="summary-label">Łączny czas pracy</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">{{ obecnosci|length }}</div>
+                <div class="summary-label">Łączne odbicia</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-value">
+                    {% with avg_hours=0 count=0 %}
+                        {% for dzien in dni_pracy %}
+                            {% if dzien.czas_pracy %}
+                                {% with avg_hours=avg_hours|add:dzien.czas_pracy_godziny count=count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if count > 0 %}
+                            {% widthratio avg_hours count 1 %}h
+                        {% else %}
+                            0h
+                        {% endif %}
+                    {% endwith %}
+                </div>
+                <div class="summary-label">Średnio dziennie</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Timeline obecności -->
+    {% if dni_pracy %}
+    <div class="timeline-section">
+        <h3>📅 Szczegółowa historia</h3>
+        <div class="timeline">
+            {% regroup obecnosci by data as grouped_obecnosci %}
+            {% for day_group in grouped_obecnosci %}
+                <div class="timeline-day">
+                    <div class="timeline-day-header">
+                        <h3>{{ day_group.grouper|date:"d.m.Y" }} ({{ day_group.grouper|date:"l" }})</h3>
+                        
+                        {% for dzien in dni_pracy %}
+                            {% if dzien.data == day_group.grouper %}
+                            <div class="timeline-day-stats">
+                                <div class="day-stat">
+                                    <div class="day-stat-value">
+                                        {% if dzien.czas_wejscia %}
+                                            {{ dzien.czas_wejscia|time:"H:i" }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </div>
+                                    <div class="day-stat-label">Wejście</div>
+                                </div>
+                                <div class="day-stat">
+                                    <div class="day-stat-value">
+                                        {% if dzien.czas_wyjscia %}
+                                            {{ dzien.czas_wyjscia|time:"H:i" }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </div>
+                                    <div class="day-stat-label">Wyjście</div>
+                                </div>
+                                <div class="day-stat">
+                                    <div class="day-stat-value">
+                                        {% if dzien.czas_pracy %}
+                                            {{ dzien.czas_pracy_godziny|floatformat:1 }}h
+                                        {% else %}
+                                            0h
+                                        {% endif %}
+                                    </div>
+                                    <div class="day-stat-label">Czas pracy</div>
+                                </div>
+                                <div class="day-stat">
+                                    <div class="day-stat-value">
+                                        <span class="status-badge status-{{ dzien.status_dnia }}">
+                                            {{ dzien.get_status_dnia_display }}
+                                        </span>
+                                    </div>
+                                    <div class="day-stat-label">Status</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    
+                    {% for obecnosc in day_group.list %}
+                    <div class="timeline-item {{ obecnosc.status }}">
+                        <div class="timeline-time">
+                            {{ obecnosc.data_czas|time:"H:i:s" }}
+                        </div>
+                        <div class="timeline-status">
+                            <span class="status-badge status-{{ obecnosc.status }}">
+                                {{ obecnosc.get_status_display }}
+                            </span>
+                            {% if obecnosc.lokalizacja %}
+                                - {{ obecnosc.lokalizacja }}
+                            {% endif %}
+                        </div>
+                        {% if obecnosc.uwagi %}
+                        <div class="timeline-details">
+                            💬 {{ obecnosc.uwagi }}
+                        </div>
+                        {% endif %}
+                        {% if obecnosc.adres_ip %}
+                        <div class="timeline-details">
+                            🌐 IP: {{ obecnosc.adres_ip }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="timeline-section">
+        <div class="no-data">
+            <p>📭 Brak zapisów obecności w wybranym okresie</p>
+            <p>Sprawdź czy wybrano właściwy zakres dat lub czy pracownik odbijał obecność.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Walidacja dat
+document.getElementById('data_od').addEventListener('change', function() {
+    const dataOd = new Date(this.value);
+    const dataDo = new Date(document.getElementById('data_do').value);
+    
+    if (dataOd > dataDo) {
+        document.getElementById('data_do').value = this.value;
+    }
+});
+
+document.getElementById('data_do').addEventListener('change', function() {
+    const dataOd = new Date(document.getElementById('data_od').value);
+    const dataDo = new Date(this.value);
+    
+    if (dataDo < dataOd) {
+        document.getElementById('data_od').value = this.value;
+    }
+});
+
+// Szybkie filtry
+function setQuickFilter(days) {
+    const today = new Date();
+    const fromDate = new Date(today);
+    fromDate.setDate(today.getDate() - days);
+    
+    document.getElementById('data_od').value = fromDate.toISOString().split('T')[0];
+    document.getElementById('data_do').value = today.toISOString().split('T')[0];
+}
+
+// Dodaj przyciski szybkich filtrów
+document.addEventListener('DOMContentLoaded', function() {
+    const filtersSection = document.querySelector('.filters-section');
+    const quickFilters = document.createElement('div');
+    quickFilters.innerHTML = `
+        <div style="margin-top: 15px;">
+            <strong>Szybkie filtry:</strong>
+            <button type="button" onclick="setQuickFilter(7)" class="btn btn-secondary" style="margin: 5px;">Ostatnie 7 dni</button>
+            <button type="button" onclick="setQuickFilter(30)" class="btn btn-secondary" style="margin: 5px;">Ostatnie 30 dni</button>
+            <button type="button" onclick="setQuickFilter(90)" class="btn btn-secondary" style="margin: 5px;">Ostatnie 3 miesiące</button>
+        </div>
+    `;
+    filtersSection.appendChild(quickFilters);
+});
+</script>
+{% endblock %}

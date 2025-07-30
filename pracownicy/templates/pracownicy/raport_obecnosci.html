@@ -1,0 +1,475 @@
+{% extends 'base.html' %}
+
+{% block title %}Raport obecności{% endblock %}
+
+{% block content %}
+<style>
+    .report-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .header-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .filters-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .filter-group label {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .filter-group input,
+    .filter-group select {
+        padding: 10px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .filter-group input:focus,
+    .filter-group select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+    }
+    
+    .stat-card:nth-child(1)::before { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+    .stat-card:nth-child(2)::before { background: linear-gradient(90deg, #f44336, #FF6B6B); }
+    .stat-card:nth-child(3)::before { background: linear-gradient(90deg, #2196F3, #64B5F6); }
+    .stat-card:nth-child(4)::before { background: linear-gradient(90deg, #9C27B0, #E1BEE7); }
+    
+    .stat-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    .report-table {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+        position: sticky;
+        top: 0;
+    }
+    
+    .table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .employee-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .employee-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+    }
+    
+    .status-obecny { background: #d4edda; color: #155724; }
+    .status-nieobecny { background: #f8d7da; color: #721c24; }
+    .status-urlop { background: #d1ecf1; color: #0c5460; }
+    .status-choroba { background: #fff3cd; color: #856404; }
+    
+    .time-cell {
+        font-family: 'Courier New', monospace;
+        font-weight: 500;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 2px solid #e9ecef;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .navigation-links {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    @media (max-width: 768px) {
+        .report-container {
+            padding: 15px;
+        }
+        
+        .filter-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .navigation-links {
+            flex-direction: column;
+        }
+        
+        .table {
+            font-size: 12px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 8px 10px;
+        }
+    }
+</style>
+
+<div class="report-container">
+    <div class="header-section">
+        <h1>📊 Raport obecności</h1>
+        <p>Przegląd obecności pracowników w wybranym okresie</p>
+    </div>
+
+    <div class="navigation-links">
+        <a href="{% url 'system_obecnosci' %}" class="btn btn-secondary">
+            ← Powrót do systemu obecności
+        </a>
+        <a href="{% url 'lista_pracownikow' %}" class="btn btn-secondary">
+            👥 Lista pracowników
+        </a>
+    </div>
+
+    <!-- Filtry -->
+    <div class="filters-section">
+        <h3>🔍 Filtry</h3>
+        <form method="get">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="data_od">Data od:</label>
+                    <input type="date" id="data_od" name="data_od" value="{{ data_od|date:'Y-m-d' }}">
+                </div>
+                <div class="filter-group">
+                    <label for="data_do">Data do:</label>
+                    <input type="date" id="data_do" name="data_do" value="{{ data_do|date:'Y-m-d' }}">
+                </div>
+                <div class="filter-group">
+                    <label for="zespol">Zespół:</label>
+                    <select id="zespol" name="zespol">
+                        <option value="">Wszystkie zespoły</option>
+                        {% for zespol in zespoly %}
+                        <option value="{{ zespol.id }}" {% if zespol.id == zespol_id %}selected{% endif %}>
+                            {{ zespol.nazwa }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="pracownik">Pracownik:</label>
+                    <select id="pracownik" name="pracownik">
+                        <option value="">Wszyscy pracownicy</option>
+                        {% for pracownik in pracownicy %}
+                        <option value="{{ pracownik.id }}" {% if pracownik.id == pracownik_id %}selected{% endif %}>
+                            {{ pracownik.nazwisko }} {{ pracownik.imie }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">🔍 Filtruj</button>
+        </form>
+    </div>
+
+    <!-- Statystyki -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ statystyki.dni_obecne }}</div>
+            <div class="stat-label">Dni obecności</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ statystyki.dni_nieobecne }}</div>
+            <div class="stat-label">Dni nieobecności</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">
+                {% if statystyki.sredni_czas_pracy %}
+                    {{ statystyki.sredni_czas_pracy|timesince|slice:":2" }}h
+                {% else %}
+                    0h
+                {% endif %}
+            </div>
+            <div class="stat-label">Średni czas pracy</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ statystyki.total_godzin|floatformat:0 }}h</div>
+            <div class="stat-label">Łączne godziny</div>
+        </div>
+    </div>
+
+    <!-- Tabela wyników -->
+    <div class="report-table">
+        <h3>📋 Szczegółowy raport</h3>
+        
+        {% if dni_pracy %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Pracownik</th>
+                    <th>Data</th>
+                    <th>Wejście</th>
+                    <th>Wyjście</th>
+                    <th>Czas pracy</th>
+                    <th>Czas przerw</th>
+                    <th>Status</th>
+                    <th>Akcje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dzien in dni_pracy %}
+                <tr>
+                    <td>
+                        <div class="employee-info">
+                            <div class="employee-avatar">
+                                {% if dzien.pracownik.zdjecie %}
+                                    <img src="{{ dzien.pracownik.zdjecie.url }}" alt="" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                {% else %}
+                                    {{ dzien.pracownik.imie.0 }}{{ dzien.pracownik.nazwisko.0 }}
+                                {% endif %}
+                            </div>
+                            <div>
+                                <strong>{{ dzien.pracownik.nazwisko }} {{ dzien.pracownik.imie }}</strong>
+                                <br>
+                                <small>{{ dzien.pracownik.zespol.nazwa }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <strong>{{ dzien.data|date:"d.m.Y" }}</strong>
+                        <br>
+                        <small>{{ dzien.data|date:"l" }}</small>
+                    </td>
+                    <td class="time-cell">
+                        {% if dzien.czas_wejscia %}
+                            {{ dzien.czas_wejscia|time:"H:i" }}
+                        {% else %}
+                            <span style="color: #999;">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="time-cell">
+                        {% if dzien.czas_wyjscia %}
+                            {{ dzien.czas_wyjscia|time:"H:i" }}
+                        {% else %}
+                            <span style="color: #999;">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="time-cell">
+                        {% if dzien.czas_pracy %}
+                            <strong>{{ dzien.czas_pracy_godziny|floatformat:1 }}h</strong>
+                        {% else %}
+                            <span style="color: #999;">0h</span>
+                        {% endif %}
+                    </td>
+                    <td class="time-cell">
+                        {% if dzien.czas_przerw %}
+                            {{ dzien.czas_przerw|timesince|slice:":5" }}
+                        {% else %}
+                            <span style="color: #999;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ dzien.status_dnia }}">
+                            {{ dzien.get_status_dnia_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'historia_obecnosci_pracownik' dzien.pracownik.id %}?data_od={{ dzien.data|date:'Y-m-d' }}&data_do={{ dzien.data|date:'Y-m-d' }}" 
+                           class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+                            👁️ Szczegóły
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-data">
+            <p>📭 Brak danych dla wybranych kryteriów</p>
+            <p>Spróbuj zmienić filtry lub sprawdź czy pracownicy odbijali obecność w tym okresie.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Automatyczne odświeżanie filtrów pracowników na podstawie zespołu
+document.getElementById('zespol').addEventListener('change', function() {
+    const zespolId = this.value;
+    const pracownikSelect = document.getElementById('pracownik');
+    
+    // Resetuj wybór pracownika
+    pracownikSelect.value = '';
+    
+    // Ukryj/pokaż opcje pracowników
+    const options = pracownikSelect.querySelectorAll('option');
+    options.forEach(option => {
+        if (option.value === '') {
+            option.style.display = 'block';
+            return;
+        }
+        
+        // Tu można dodać logikę filtrowania pracowników po zespole
+        // Na razie wszystkie są widoczne
+        option.style.display = 'block';
+    });
+});
+
+// Walidacja dat
+document.getElementById('data_od').addEventListener('change', function() {
+    const dataOd = new Date(this.value);
+    const dataDo = new Date(document.getElementById('data_do').value);
+    
+    if (dataOd > dataDo) {
+        document.getElementById('data_do').value = this.value;
+    }
+});
+
+document.getElementById('data_do').addEventListener('change', function() {
+    const dataOd = new Date(document.getElementById('data_od').value);
+    const dataDo = new Date(this.value);
+    
+    if (dataDo < dataOd) {
+        document.getElementById('data_od').value = this.value;
+    }
+});
+</script>
+{% endblock %}

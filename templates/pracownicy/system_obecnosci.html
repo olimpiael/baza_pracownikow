@@ -1,0 +1,622 @@
+{% extends 'base.html' %}
+
+{% block title %}System obecności{% endblock %}
+
+{% block content %}
+<style>
+    .attendance-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .header-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .user-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 30px;
+        font-weight: bold;
+    }
+    
+    .user-details h1 {
+        margin: 0;
+        color: #333;
+        font-size: 2.5em;
+    }
+    
+    .user-details p {
+        margin: 5px 0;
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .action-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        text-align: center;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+    }
+    
+    .action-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+    }
+    
+    .action-card.wejscie::before { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+    .action-card.wyjscie::before { background: linear-gradient(90deg, #f44336, #FF6B6B); }
+    .action-card.przerwa-start::before { background: linear-gradient(90deg, #FF9800, #FFD93D); }
+    .action-card.przerwa-koniec::before { background: linear-gradient(90deg, #2196F3, #64B5F6); }
+    
+    .action-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+    
+    .action-title {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+    }
+    
+    .action-description {
+        font-size: 0.9em;
+        color: #666;
+    }
+    
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .status-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .status-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .status-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+    
+    .status-current { background: linear-gradient(45deg, #4CAF50, #8BC34A); }
+    .status-time { background: linear-gradient(45deg, #2196F3, #64B5F6); }
+    .status-week { background: linear-gradient(45deg, #9C27B0, #E1BEE7); }
+    
+    .status-title {
+        flex: 1;
+    }
+    
+    .status-title h3 {
+        margin: 0 0 5px 0;
+        color: #333;
+        font-size: 1.2em;
+    }
+    
+    .status-title p {
+        margin: 0;
+        color: #666;
+        font-size: 0.9em;
+    }
+    
+    .status-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #333;
+        text-align: center;
+    }
+    
+    .timeline-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+        padding-left: 30px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid #667eea;
+    }
+    
+    .timeline-time {
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #333;
+    }
+    
+    .timeline-status {
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 2px solid #e9ecef;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .navigation-links {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+    
+    .disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    
+    .current-status {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        text-align: center;
+        border: 2px solid #e9ecef;
+    }
+    
+    .current-status.active {
+        background: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    
+    .messages {
+        margin-bottom: 20px;
+    }
+    
+    .message {
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+    
+    .message.success {
+        background: linear-gradient(45deg, #d4edda, #c3e6cb);
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+        background: linear-gradient(45deg, #f8d7da, #f5c6cb);
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    @media (max-width: 768px) {
+        .attendance-container {
+            padding: 15px;
+        }
+        
+        .quick-actions {
+            grid-template-columns: 1fr;
+        }
+        
+        .status-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .user-info {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .navigation-links {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+</style>
+
+<div class="attendance-container">
+    <!-- Wyświetlanie komunikatów -->
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Sekcja nagłówka -->
+    <div class="header-section">
+        <div class="user-info">
+            <div class="user-avatar">
+                {% if current_pracownik.zdjecie %}
+                    <img src="{{ current_pracownik.zdjecie.url }}" alt="Zdjęcie" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                {% else %}
+                    {{ current_pracownik.imie.0 }}{{ current_pracownik.nazwisko.0 }}
+                {% endif %}
+            </div>
+            <div class="user-details">
+                <h1>System obecności</h1>
+                <p>{{ current_pracownik.imie }} {{ current_pracownik.nazwisko }}</p>
+                <p>{{ current_pracownik.stanowisko.nazwa }} | {{ current_pracownik.zespol.nazwa }}</p>
+            </div>
+        </div>
+        
+        <!-- Aktualny status -->
+        <div class="current-status {% if aktualny_status %}active{% endif %}">
+            {% if aktualny_status %}
+                <strong>Aktualny status:</strong> 
+                {% if aktualny_status == 'wejscie' %}🟢 W pracy
+                {% elif aktualny_status == 'wyjscie' %}🔴 Poza pracą
+                {% elif aktualny_status == 'przerwa_start' %}🟡 Na przerwie
+                {% elif aktualny_status == 'przerwa_koniec' %}🟢 W pracy (po przerwie)
+                {% endif %}
+            {% else %}
+                <strong>Brak odbić dzisiaj</strong> - rozpocznij od wejścia
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Linki nawigacyjne -->
+    <div class="navigation-links">
+        <a href="{% url 'lista_pracownikow' %}" class="btn btn-secondary">
+            ← Powrót do listy
+        </a>
+        <a href="{% url 'historia_obecnosci' %}" class="btn btn-secondary">
+            📅 Moja historia
+        </a>
+        {% if current_pracownik.rola == 'admin' or current_pracownik.rola.poziom_uprawnien <= 4 %}
+        <a href="{% url 'zarzadzaj_statusy' %}" class="btn btn-secondary">
+            🗓️ Zarządzaj statusami
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Szybkie akcje odbijania -->
+    <div class="quick-actions">
+        <!-- Wejście -->
+        <div class="action-card wejscie {% if aktualny_status and aktualny_status != 'wyjscie' %}disabled{% endif %}" 
+             onclick="odbijObecnosc('wejscie')">
+            <div class="action-icon">🟢</div>
+            <div class="action-title">Wejście</div>
+            <div class="action-description">Rozpocznij dzień pracy</div>
+        </div>
+
+        <!-- Wyjście -->
+        <div class="action-card wyjscie {% if not aktualny_status or aktualny_status == 'wyjscie' or aktualny_status == 'przerwa_start' %}disabled{% endif %}" 
+             onclick="odbijObecnosc('wyjscie')">
+            <div class="action-icon">🔴</div>
+            <div class="action-title">Wyjście</div>
+            <div class="action-description">Zakończ dzień pracy</div>
+        </div>
+
+        <!-- Początek przerwy -->
+        <div class="action-card przerwa-start {% if aktualny_status != 'wejscie' and aktualny_status != 'przerwa_koniec' %}disabled{% endif %}" 
+             onclick="odbijObecnosc('przerwa_start')">
+            <div class="action-icon">🟡</div>
+            <div class="action-title">Przerwa</div>
+            <div class="action-description">Rozpocznij przerwę</div>
+        </div>
+
+        <!-- Koniec przerwy -->
+        <div class="action-card przerwa-koniec {% if aktualny_status != 'przerwa_start' %}disabled{% endif %}" 
+             onclick="odbijObecnosc('przerwa_koniec')">
+            <div class="action-icon">🔵</div>
+            <div class="action-title">Powrót</div>
+            <div class="action-description">Zakończ przerwę</div>
+        </div>
+    </div>
+
+    <!-- Statystyki -->
+    <div class="status-grid">
+        <div class="status-card">
+            <div class="status-header">
+                <div class="status-icon status-time">⏰</div>
+                <div class="status-title">
+                    <h3>Czas pracy dzisiaj</h3>
+                    <p>{{ dzisiaj|date:"d.m.Y" }}</p>
+                </div>
+            </div>
+            <div class="status-value">
+                {% if dzien_pracy.czas_pracy %}
+                    {{ dzien_pracy.czas_pracy_godziny|floatformat:1 }}h
+                {% else %}
+                    0h
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="status-card">
+            <div class="status-header">
+                <div class="status-icon status-week">📊</div>
+                <div class="status-title">
+                    <h3>Ten tydzień</h3>
+                    <p>Łączny czas pracy</p>
+                </div>
+            </div>
+            <div class="status-value">{{ czas_pracy_tydzien|floatformat:1 }}h</div>
+        </div>
+
+        <div class="status-card">
+            <div class="status-header">
+                <div class="status-icon status-current">📅</div>
+                <div class="status-title">
+                    <h3>Status dnia</h3>
+                    <p>Aktualny status</p>
+                </div>
+            </div>
+            <div class="status-value" style="font-size: 1.2em;">
+                {{ dzien_pracy.get_status_dnia_display }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline dzisiejszych odbić -->
+    {% if dzisiejsze_obecnosci %}
+    <div class="timeline-section">
+        <div class="timeline-header">
+            <h3>Dzisiejsze odbicia</h3>
+            <span>{{ dzisiejsze_obecnosci.count }} odbić</span>
+        </div>
+        <div class="timeline">
+            {% for obecnosc in dzisiejsze_obecnosci %}
+            <div class="timeline-item">
+                <div class="timeline-time">
+                    {{ obecnosc.data_czas|time:"H:i:s" }}
+                </div>
+                <div class="timeline-status">
+                    {{ obecnosc.get_status_display }}
+                    {% if obecnosc.lokalizacja %}
+                        - {{ obecnosc.lokalizacja }}
+                    {% endif %}
+                    {% if obecnosc.uwagi %}
+                        <br><small>{{ obecnosc.uwagi }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Ostatnie dni pracy -->
+    {% if ostatnie_dni %}
+    <div class="timeline-section">
+        <div class="timeline-header">
+            <h3>Ostatnie dni pracy</h3>
+        </div>
+        <div style="display: grid; gap: 15px;">
+            {% for dzien in ostatnie_dni %}
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>{{ dzien.data|date:"d.m.Y" }} ({{ dzien.data|date:"l" }})</strong>
+                    <br>
+                    <span style="color: #666;">{{ dzien.get_status_dnia_display }}</span>
+                </div>
+                <div style="text-align: right;">
+                    {% if dzien.czas_wejscia %}
+                        <div>Wejście: {{ dzien.czas_wejscia|time:"H:i" }}</div>
+                    {% endif %}
+                    {% if dzien.czas_wyjscia %}
+                        <div>Wyjście: {{ dzien.czas_wyjscia|time:"H:i" }}</div>
+                    {% endif %}
+                    {% if dzien.czas_pracy %}
+                        <div><strong>{{ dzien.czas_pracy_godziny|floatformat:1 }}h</strong></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function odbijObecnosc(status) {
+    // Sprawdź czy przycisk nie jest zablokowany
+    const card = event.currentTarget;
+    if (card.classList.contains('disabled')) {
+        return;
+    }
+    
+    // Opcjonalnie zapytaj o lokalizację
+    let lokalizacja = '';
+    let uwagi = '';
+    
+    if (status === 'wejscie' || status === 'wyjscie') {
+        lokalizacja = prompt('Lokalizacja (opcjonalnie):', 'Biuro główne');
+        if (lokalizacja === null) return; // Anulowano
+    }
+    
+    if (status === 'przerwa_start') {
+        uwagi = prompt('Rodzaj przerwy (opcjonalnie):', 'Przerwa obiadowa');
+        if (uwagi === null) return; // Anulowano
+    }
+    
+    // Wyślij żądanie
+    fetch('{% url "odbij_obecnosc" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'status': status,
+            'lokalizacja': lokalizacja || '',
+            'uwagi': uwagi || ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Pokaż komunikat sukcesu
+            alert(data.message);
+            
+            // Odśwież stronę
+            window.location.reload();
+        } else {
+            alert('Błąd: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Wystąpił błąd podczas odbijania obecności');
+    });
+}
+
+// Automatyczne odświeżanie co 30 sekund
+setInterval(function() {
+    // Tylko odśwież jeśli użytkownik jest aktywny
+    if (document.hasFocus()) {
+        const currentTime = document.querySelector('.timeline-time');
+        if (currentTime) {
+            // Subtelne odświeżenie bez przeładowania całej strony
+            fetch(window.location.href)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const newDoc = parser.parseFromString(html, 'text/html');
+                    
+                    // Aktualizuj tylko statystyki
+                    const newStats = newDoc.querySelector('.status-grid');
+                    const currentStats = document.querySelector('.status-grid');
+                    if (newStats && currentStats) {
+                        currentStats.innerHTML = newStats.innerHTML;
+                    }
+                });
+        }
+    }
+}, 30000); // 30 sekund
+</script>
+{% endblock %}

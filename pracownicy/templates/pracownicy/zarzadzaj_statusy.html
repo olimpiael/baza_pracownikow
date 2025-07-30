@@ -1,0 +1,621 @@
+{% extends 'base.html' %}
+
+{% block title %}Zarządzanie statusami dni pracy{% endblock %}
+
+{% block content %}
+<style>
+    .status-manager-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+    
+    .header-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .actions-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .action-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .tab-button {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-weight: 500;
+        color: #666;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .tab-button.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+    }
+    
+    .tab-content {
+        display: none;
+        padding: 20px 0;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 10px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+    
+    .filters-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .results-section {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+    
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+        position: sticky;
+        top: 0;
+    }
+    
+    .table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .employee-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .employee-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+    }
+    
+    .status-obecny { background: #d4edda; color: #155724; }
+    .status-nieobecny { background: #f8d7da; color: #721c24; }
+    .status-urlop { background: #d1ecf1; color: #0c5460; }
+    .status-choroba { background: #fff3cd; color: #856404; }
+    .status-swieto { background: #e2e3e5; color: #383d41; }
+    .status-delegacja { background: #d4edda; color: #155724; }
+    
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-success {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-warning {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #f8f9fa;
+        color: #333;
+        border: 2px solid #e9ecef;
+    }
+    
+    .btn-secondary:hover {
+        background: #e9ecef;
+        transform: translateY(-2px);
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .navigation-links {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .quick-status-form {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+    }
+    
+    .messages {
+        margin-bottom: 20px;
+    }
+    
+    .message {
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        font-weight: 500;
+    }
+    
+    .message.success {
+        background: linear-gradient(45deg, #d4edda, #c3e6cb);
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .message.error {
+        background: linear-gradient(45deg, #f8d7da, #f5c6cb);
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    @media (max-width: 768px) {
+        .status-manager-container {
+            padding: 15px;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .action-tabs {
+            flex-direction: column;
+        }
+        
+        .navigation-links {
+            flex-direction: column;
+        }
+        
+        .table {
+            font-size: 12px;
+        }
+        
+        .table th,
+        .table td {
+            padding: 8px 10px;
+        }
+    }
+</style>
+
+<div class="status-manager-container">
+    <!-- Wyświetlanie komunikatów -->
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="header-section">
+        <h1>🗓️ Zarządzanie statusami dni pracy</h1>
+        <p>Panel do ustawiania urlopów, świąt, delegacji i innych statusów pracowników</p>
+    </div>
+
+    <div class="navigation-links">
+        <a href="{% url 'system_obecnosci' %}" class="btn btn-secondary">
+            ← Powrót do systemu obecności
+        </a>
+        <a href="{% url 'raport_obecnosci' %}" class="btn btn-secondary">
+            📊 Raport obecności
+        </a>
+    </div>
+
+    <!-- Sekcja akcji -->
+    <div class="actions-section">
+        <div class="action-tabs">
+            <button class="tab-button active" onclick="showTab('individual')">Indywidualny status</button>
+            <button class="tab-button" onclick="showTab('holiday')">Święto masowo</button>
+            <button class="tab-button" onclick="showTab('vacation')">Urlop</button>
+        </div>
+
+        <!-- Tab: Indywidualny status -->
+        <div id="individual" class="tab-content active">
+            <h3>Ustaw status dla konkretnego pracownika i dnia</h3>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ustaw_status">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="pracownik">Pracownik:</label>
+                        <select id="pracownik" name="pracownik_id" required>
+                            <option value="">Wybierz pracownika</option>
+                            {% for pracownik in pracownicy %}
+                            <option value="{{ pracownik.id }}">
+                                {{ pracownik.nazwisko }} {{ pracownik.imie }} - {{ pracownik.zespol.nazwa }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="data">Data:</label>
+                        <input type="date" id="data" name="data" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Nowy status:</label>
+                        <select id="status" name="status" required>
+                            {% for status_key, status_name in status_choices %}
+                            <option value="{{ status_key }}">{{ status_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">📝 Ustaw status</button>
+            </form>
+        </div>
+
+        <!-- Tab: Święto masowo -->
+        <div id="holiday" class="tab-content">
+            <h3>Ustaw święto dla wszystkich pracowników</h3>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ustaw_swieto_masowo">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="data_swieta">Data święta:</label>
+                        <input type="date" id="data_swieta" name="data_swieta" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nazwa_swieta">Nazwa święta (opcjonalnie):</label>
+                        <input type="text" id="nazwa_swieta" name="nazwa_swieta" placeholder="np. Boże Narodzenie">
+                    </div>
+                </div>
+                <p><strong>Uwaga:</strong> Status zostanie ustawiony dla 
+                {% if current_pracownik.rola.poziom_uprawnien == 3 %}
+                    wszystkich pracowników Twojego zespołu ({{ current_pracownik.zespol.nazwa }}).
+                {% else %}
+                    wszystkich pracowników w firmie.
+                {% endif %}
+                </p>
+                <button type="submit" class="btn btn-warning">🎄 Ustaw święto masowo</button>
+            </form>
+        </div>
+
+        <!-- Tab: Urlop -->
+        <div id="vacation" class="tab-content">
+            <h3>Ustaw urlop dla pracownika</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="urlop_pracownik">Pracownik:</label>
+                    <select id="urlop_pracownik" required>
+                        <option value="">Wybierz pracownika</option>
+                        {% for pracownik in pracownicy %}
+                        <option value="{{ pracownik.id }}">
+                            {{ pracownik.nazwisko }} {{ pracownik.imie }} - {{ pracownik.zespol.nazwa }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="urlop_data_od">Data od:</label>
+                    <input type="date" id="urlop_data_od" required>
+                </div>
+                <div class="form-group">
+                    <label for="urlop_data_do">Data do:</label>
+                    <input type="date" id="urlop_data_do" required>
+                </div>
+            </div>
+            <button type="button" onclick="ustawUrlop()" class="btn btn-success">🏖️ Ustaw urlop</button>
+        </div>
+    </div>
+
+    <!-- Filtry -->
+    <div class="filters-section">
+        <h3>🔍 Filtry przeglądania</h3>
+        <form method="get">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="data_od">Data od:</label>
+                    <input type="date" id="data_od" name="data_od" value="{{ data_od|date:'Y-m-d' }}">
+                </div>
+                <div class="form-group">
+                    <label for="data_do">Data do:</label>
+                    <input type="date" id="data_do" name="data_do" value="{{ data_do|date:'Y-m-d' }}">
+                </div>
+                <div class="form-group">
+                    <label for="zespol">Zespół:</label>
+                    <select id="zespol" name="zespol">
+                        <option value="">Wszystkie zespoły</option>
+                        {% for zespol in zespoly %}
+                        <option value="{{ zespol.id }}" {% if zespol.id == zespol_id %}selected{% endif %}>
+                            {{ zespol.nazwa }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">🔍 Filtruj</button>
+        </form>
+    </div>
+
+    <!-- Wyniki -->
+    <div class="results-section">
+        <h3>📋 Aktualnie ustawione statusy</h3>
+        
+        {% if dni_pracy %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Pracownik</th>
+                    <th>Data</th>
+                    <th>Status</th>
+                    <th>Wejście</th>
+                    <th>Wyjście</th>
+                    <th>Czas pracy</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dzien in dni_pracy %}
+                <tr>
+                    <td>
+                        <div class="employee-info">
+                            <div class="employee-avatar">
+                                {% if dzien.pracownik.zdjecie %}
+                                    <img src="{{ dzien.pracownik.zdjecie.url }}" alt="" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                {% else %}
+                                    {{ dzien.pracownik.imie.0 }}{{ dzien.pracownik.nazwisko.0 }}
+                                {% endif %}
+                            </div>
+                            <div>
+                                <strong>{{ dzien.pracownik.nazwisko }} {{ dzien.pracownik.imie }}</strong>
+                                <br>
+                                <small>{{ dzien.pracownik.zespol.nazwa }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <strong>{{ dzien.data|date:"d.m.Y" }}</strong>
+                        <br>
+                        <small>{{ dzien.data|date:"l" }}</small>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ dzien.status_dnia }}">
+                            {{ dzien.get_status_dnia_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if dzien.czas_wejscia %}
+                            {{ dzien.czas_wejscia|time:"H:i" }}
+                        {% else %}
+                            <span style="color: #999;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if dzien.czas_wyjscia %}
+                            {{ dzien.czas_wyjscia|time:"H:i" }}
+                        {% else %}
+                            <span style="color: #999;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if dzien.czas_pracy %}
+                            <strong>{{ dzien.czas_pracy_godziny|floatformat:1 }}h</strong>
+                        {% else %}
+                            <span style="color: #999;">0h</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: #666;">
+            <p>📭 Brak danych dla wybranych kryteriów</p>
+            <p>Wybierz inny zakres dat lub zmień filtry.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Ukryj wszystkie taby
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Pokaż wybrany tab
+    document.getElementById(tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function ustawUrlop() {
+    const pracownikId = document.getElementById('urlop_pracownik').value;
+    const dataOd = document.getElementById('urlop_data_od').value;
+    const dataDo = document.getElementById('urlop_data_do').value;
+    
+    if (!pracownikId || !dataOd || !dataDo) {
+        alert('Wypełnij wszystkie pola');
+        return;
+    }
+    
+    if (new Date(dataOd) > new Date(dataDo)) {
+        alert('Data rozpoczęcia nie może być późniejsza niż data zakończenia');
+        return;
+    }
+    
+    fetch('{% url "ustaw_urlop" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'pracownik_id': pracownikId,
+            'data_od': dataOd,
+            'data_do': dataDo
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Błąd: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Wystąpił błąd podczas ustawiania urlopu');
+    });
+}
+
+// Walidacja dat
+document.getElementById('urlop_data_od').addEventListener('change', function() {
+    const dataOd = new Date(this.value);
+    const dataDo = new Date(document.getElementById('urlop_data_do').value);
+    
+    if (dataOd > dataDo) {
+        document.getElementById('urlop_data_do').value = this.value;
+    }
+});
+
+document.getElementById('urlop_data_do').addEventListener('change', function() {
+    const dataOd = new Date(document.getElementById('urlop_data_od').value);
+    const dataDo = new Date(this.value);
+    
+    if (dataDo < dataOd) {
+        document.getElementById('urlop_data_od').value = this.value;
+    }
+});
+
+// Ustawienie dzisiejszej daty jako domyślnej
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('data').value = today;
+    document.getElementById('data_swieta').value = today;
+    document.getElementById('urlop_data_od').value = today;
+    document.getElementById('urlop_data_do').value = today;
+});
+</script>
+{% endblock %}

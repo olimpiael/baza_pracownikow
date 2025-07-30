@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Room - {{ room_name }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .room-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .back-link {
+            color: #6c757d;
+            text-decoration: none;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        button {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 8px;
+            transition: all 0.3s ease;
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status.connected {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .participants-section, .audio-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        .participants-section h3, .audio-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        #participantList {
+            list-style: none;
+            padding: 0;
+        }
+        #participantList li {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .audio-stream {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .audio-stream label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+        .audio-stream audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .mic-indicator {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .debug-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="room-container">
+        <a href="{% url 'lista_pracownikow' %}" class="back-link">← Powrót do listy pracowników</a>
+        
+        <h2>🎤 Voice Chat Room: {{ room_name }}</h2>
+        
+        <div id="status" class="status">Łączenie z pokojem...</div>
+        
+        <div class="controls">
+            <button id="startBtn" onclick="startCall()">🎤 Dołącz do rozmowy</button>
+            <button id="endBtn" onclick="endCall()" disabled>📞 Zakończ rozmowę</button>
+        </div>
+        
+        <div class="participants-section">
+            <h3>👥 Uczestnicy pokoju:</h3>
+            <ul id="participantList">
+                <li>Ładowanie listy uczestników...</li>
+            </ul>
+        </div>
+        
+        <div class="audio-section">
+            <h3>🔊 Strumienie audio:</h3>
+            <div id="audioContainer">
+                <p>Dołącz do rozmowy, aby słyszeć innych uczestników</p>
+            </div>
+        </div>
+        
+        <div id="debugInfo" class="debug-info" style="display: none;">
+            <h4>Debug Info:</h4>
+            <div id="debugLog"></div>
+        </div>
+    </div>
+
+    <script>
+        const roomName = "{{ room_name }}";
+        const currentUsername = "{{ user.username|default:'Gość' }}";
+        let ws;
+        let localStream;
+        let peers = {};
+        let isCallActive = false;
+
+        // Debug logging
+        function debugLog(message) {
+            console.log(message);
+            const debugDiv = document.getElementById('debugLog');
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            debugDiv.scrollTop = debugDiv.scrollHeight;
+        }
+
+        // Toggle debug panel with Ctrl+D
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'd') {
+                const debugDiv = document.getElementById('debugInfo');
+                debugDiv.style.display = debugDiv.style.display === 'none' ? 'block' : 'none';
+                e.preventDefault();
+            }
+        });
+
+        // WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/room/${roomName}/`);
+
+            ws.onopen = function(e) {
+                debugLog('WebSocket connected');
+                document.getElementById('status').innerHTML = `✅ Połączono z pokojem: ${roomName}`;
+                document.getElementById('status').className = 'status connected';
+            };
+
+            ws.onclose = function(e) {
+                debugLog(`WebSocket disconnected: ${e.code}`);
+                document.getElementById('status').innerHTML = '❌ Rozłączono z pokoju';
+                document.getElementById('status').className = 'status error';
+                
+                // Try to reconnect after 3 seconds
+                setTimeout(() => {
+                    debugLog('Attempting to reconnect...');
+                    initWebSocket();
+                }, 3000);
+            };
+
+            ws.onerror = function(e) {
+                debugLog('WebSocket error');
+                document.getElementById('status').innerHTML = '⚠️ Błąd połączenia';
+                document.getElementById('status').className = 'status error';
+            };
+
+            ws.onmessage = async (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    debugLog(`Received: ${data.type || 'signal'}`);
+                    
+                    if (data.type === 'user_joined') {
+                        updateParticipants(data.participants);
+                        if (data.username !== currentUsername) {
+                            document.getElementById('status').innerHTML = `👋 ${data.username} dołączył do pokoju`;
+                            
+                            // If we're in a call, create connection to new user
+                            if (isCallActive && !peers[data.username]) {
+                                debugLog(`Creating offer for new user: ${data.username}`);
+                                await createConnectionToUser(data.username, true);
+                            }
+                        }
+                    } else if (data.type === 'user_left') {
+                        updateParticipants(data.participants);
+                        if (data.username !== currentUsername) {
+                            document.getElementById('status').innerHTML = `👋 ${data.username} opuścił pokój`;
+                            
+                            // Clean up connection
+                            if (peers[data.username]) {
+                                peers[data.username].close();
+                                delete peers[data.username];
+                                
+                                // Remove audio element
+                                const audioElement = document.getElementById(`audio_${data.username}`);
+                                if (audioElement) {
+                                    audioElement.parentElement.remove();
+                                }
+                            }
+                        }
+                    } else if (data.offer && data.from && data.from !== currentUsername) {
+                        debugLog(`Handling offer from: ${data.from}`);
+                        await handleOffer(data.offer, data.from);
+                    } else if (data.answer && data.from && data.from !== currentUsername) {
+                        debugLog(`Handling answer from: ${data.from}`);
+                        await handleAnswer(data.answer, data.from);
+                    } else if (data.candidate && data.from && data.from !== currentUsername) {
+                        debugLog(`Handling ICE candidate from: ${data.from}`);
+                        await handleIceCandidate(data.candidate, data.from);
+                    }
+                } catch (error) {
+                    debugLog(`Error handling message: ${error.message}`);
+                }
+            };
+        }
+
+        async function createConnectionToUser(username, shouldCreateOffer) {
+            debugLog(`Creating connection to: ${username}`);
+            
+            const peer = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            });
+
+            peers[username] = peer;
+
+            // Add local stream if available
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    peer.addTrack(track, localStream);
+                    debugLog(`Added local track to connection with ${username}`);
+                });
+            }
+
+            // Handle ICE candidates
+            peer.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        candidate: event.candidate,
+                        from: currentUsername,
+                        to: username
+                    }));
+                }
+            };
+
+            // Handle remote stream
+            peer.ontrack = (event) => {
+                debugLog(`Received remote stream from: ${username}`);
+                const stream = event.streams[0];
+                
+                // Create audio element for this user
+                const audioContainer = document.getElementById('audioContainer');
+                
+                // Remove existing audio for this user
+                const existingAudio = document.getElementById(`audio_${username}`);
+                if (existingAudio) {
+                    existingAudio.parentElement.remove();
+                }
+                
+                const audioDiv = document.createElement('div');
+                audioDiv.className = 'audio-stream';
+                audioDiv.innerHTML = `
+                    <label>🔊 Audio od: ${username}</label>
+                    <audio id="audio_${username}" controls autoplay>
+                        Twoja przeglądarka nie obsługuje odtwarzania audio.
+                    </audio>
+                `;
+                
+                const audioElement = audioDiv.querySelector('audio');
+                audioElement.srcObject = stream;
+                
+                // Force autoplay
+                audioElement.play().then(() => {
+                    debugLog(`Audio started playing from ${username}`);
+                }).catch(e => {
+                    debugLog(`Autoplay failed for ${username}: ${e.message}`);
+                });
+                
+                audioContainer.appendChild(audioDiv);
+            };
+
+            // Connection state monitoring
+            peer.onconnectionstatechange = () => {
+                debugLog(`Connection state with ${username}: ${peer.connectionState}`);
+            };
+
+            // Create offer if needed
+            if (shouldCreateOffer) {
+                try {
+                    const offer = await peer.createOffer();
+                    await peer.setLocalDescription(offer);
+                    
+                    ws.send(JSON.stringify({
+                        offer: offer,
+                        from: currentUsername,
+                        to: username
+                    }));
+                    
+                    debugLog(`Sent offer to: ${username}`);
+                } catch (error) {
+                    debugLog(`Error creating offer: ${error.message}`);
+                }
+            }
+        }
+
+        async function handleOffer(offer, from) {
+            try {
+                if (!peers[from]) {
+                    await createConnectionToUser(from, false);
+                }
+                
+                const peer = peers[from];
+                await peer.setRemoteDescription(new RTCSessionDescription(offer));
+                
+                const answer = await peer.createAnswer();
+                await peer.setLocalDescription(answer);
+                
+                ws.send(JSON.stringify({
+                    answer: answer,
+                    from: currentUsername,
+                    to: from
+                }));
+                
+                debugLog(`Sent answer to: ${from}`);
+            } catch (error) {
+                debugLog(`Error handling offer: ${error.message}`);
+            }
+        }
+
+        async function handleAnswer(answer, from) {
+            try {
+                const peer = peers[from];
+                if (peer) {
+                    await peer.setRemoteDescription(new RTCSessionDescription(answer));
+                    debugLog(`Set remote description for answer from: ${from}`);
+                }
+            } catch (error) {
+                debugLog(`Error handling answer: ${error.message}`);
+            }
+        }
+
+        async function handleIceCandidate(candidate, from) {
+            try {
+                const peer = peers[from];
+                if (peer) {
+                    await peer.addIceCandidate(new RTCIceCandidate(candidate));
+                    debugLog(`Added ICE candidate from: ${from}`);
+                }
+            } catch (error) {
+                debugLog(`Error handling ICE candidate: ${error.message}`);
+            }
+        }
+
+        async function startCall() {
+            try {
+                debugLog('Starting call...');
+                
+                // Get microphone access
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: false
+                });
+                
+                debugLog('Got local stream');
+                
+                // Show microphone indicator
+                const micIndicator = document.createElement('div');
+                micIndicator.id = 'micIndicator';
+                micIndicator.className = 'mic-indicator';
+                micIndicator.innerHTML = '🎤 Mikrofon: WŁĄCZONY';
+                document.querySelector('.controls').appendChild(micIndicator);
+                
+                isCallActive = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('endBtn').disabled = false;
+                document.getElementById('status').innerHTML = '📞 Rozmowa aktywna - można Cię słyszeć!';
+                document.getElementById('status').className = 'status connected';
+                
+                // Clear audio container
+                document.getElementById('audioContainer').innerHTML = '<p>Oczekiwanie na innych uczestników...</p>';
+                
+                debugLog('Call started successfully');
+                
+            } catch (error) {
+                debugLog(`Error starting call: ${error.message}`);
+                document.getElementById('status').innerHTML = `❌ Błąd: ${error.message}`;
+                document.getElementById('status').className = 'status error';
+            }
+        }
+
+        function endCall() {
+            debugLog('Ending call...');
+            
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    track.stop();
+                    debugLog('Stopped local track');
+                });
+                localStream = null;
+            }
+            
+            // Close all peer connections
+            Object.keys(peers).forEach(username => {
+                peers[username].close();
+                debugLog(`Closed connection to: ${username}`);
+            });
+            peers = {};
+            
+            // Clean up UI
+            document.getElementById('audioContainer').innerHTML = '<p>Dołącz do rozmowy, aby słyszeć innych uczestników</p>';
+            
+            const micIndicator = document.getElementById('micIndicator');
+            if (micIndicator) {
+                micIndicator.remove();
+            }
+            
+            isCallActive = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('endBtn').disabled = true;
+            document.getElementById('status').innerHTML = '📞 Rozmowa zakończona';
+            document.getElementById('status').className = 'status';
+            
+            debugLog('Call ended');
+        }
+
+        function updateParticipants(participants) {
+            const list = document.getElementById('participantList');
+            list.innerHTML = '';
+            
+            if (participants.length === 0) {
+                list.innerHTML = '<li>Brak uczestników</li>';
+                return;
+            }
+            
+            participants.forEach(participant => {
+                const li = document.createElement('li');
+                li.textContent = participant;
+                if (participant === currentUsername) {
+                    li.textContent += ' (To Ty)';
+                    li.style.fontWeight = 'bold';
+                }
+                list.appendChild(li);
+            });
+            
+            debugLog(`Updated participants: ${participants.join(', ')}`);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            endCall();
+            if (ws) {
+                ws.close();
+            }
+        });
+
+        // Initialize
+        initWebSocket();
+        debugLog('Voice room initialized');
+    </script>
+</body>
+</html>

@@ -1,0 +1,156 @@
+{% load socialaccount %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logowanie - Baza Pracowników</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .login-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .forgot-password {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .forgot-password:hover {
+            text-decoration: underline;
+            color: #0056b3;
+        }
+        .admin-link {
+            color: #6c757d;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        .admin-link:hover {
+            text-decoration: underline;
+        }
+        
+        .google-btn {
+            display: block;
+            width: 100%;
+            padding: 10px 20px;
+            background: #db4437;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+            box-sizing: border-box;
+        }
+        
+        .google-btn:hover {
+            background: #c23321;
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Logowanie do Bazy Pracowników</h2>
+        
+        {% if form.errors %}
+            <div class="error">
+                <strong>Błąd logowania!</strong>
+                {% for field, errors in form.errors.items %}
+                    {% for error in errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="{{ form.username.id_for_label }}">Nazwa użytkownika:</label>
+                {{ form.username }}
+                {% if form.username.help_text %}
+                    <div class="help-text">{{ form.username.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">Hasło:</label>
+                {{ form.password }}
+                {% if form.password.help_text %}
+                    <div class="help-text">{{ form.password.help_text }}</div>
+                {% endif %}
+            </div>
+            
+            <button type="submit">Zaloguj się</button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 15px;">
+            <small>
+                <a href="{% url 'password_reset' %}" class="forgot-password">
+                    Zapomniałeś hasła?
+                </a>
+            </small>
+        </div>
+        
+        <div style="text-align: center; margin-top: 10px;">
+            <a href="{% provider_login_url 'google' %}" class="google-btn">
+                Zaloguj się przez Google
+            </a>
+        </div>
+    </div>
+</body>
+</html>
