@@ -7,6 +7,7 @@ from .models import ChatMessage
 
 class PracownicyConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        print("WebSocket: Attempting to connect")
         self.room_name = 'pracownicy_updates'
         self.room_group_name = f'pracownicy_{self.room_name}'
 
@@ -16,8 +17,10 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
                 self.room_group_name,
                 self.channel_name
             )
+            print("WebSocket: Added to group successfully")
 
             await self.accept()
+            print("WebSocket: Connection accepted")
             
             # Wyślij wiadomość powitalną
             await self.send(text_data=json.dumps({
@@ -25,9 +28,18 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
                 'message': 'Połączono z systemem powiadomień!',
                 'server_time': str(timezone.now())
             }))
+            print("WebSocket: Welcome message sent")
 
             # Wyślij historię czatu
             chat_history = await self.get_chat_history()
+            await self.send(text_data=json.dumps({
+                'type': 'chat_history',
+                'messages': chat_history
+            }))
+            print("WebSocket: Chat history sent")
+        except Exception as e:
+            print(f"Error in WebSocket connect: {e}")
+            await self.close()
             await self.send(text_data=json.dumps({
                 'type': 'chat_history',
                 'messages': chat_history

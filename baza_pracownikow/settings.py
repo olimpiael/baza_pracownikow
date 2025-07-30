@@ -191,14 +191,21 @@ REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.layers.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [REDIS_URL],
-        },
-    } if 'REDIS_URL' in os.environ else {
         'BACKEND': 'channels.layers.InMemoryChannelLayer'
     }
 }
+
+# Redis config - commented out for debugging
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.layers.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [REDIS_URL],
+#         },
+#     } if 'REDIS_URL' in os.environ else {
+#         'BACKEND': 'channels.layers.InMemoryChannelLayer'
+#     }
+# }
 
 # Login/Logout settings
 LOGIN_URL = '/accounts/login/'
