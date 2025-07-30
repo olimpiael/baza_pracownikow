@@ -1413,11 +1413,13 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws/pracownicy/`;
             
+            console.log('Trying to connect to WebSocket:', wsUrl);
             websocket = new WebSocket(wsUrl);
 
             websocket.onopen = function(event) {
-                console.log('WebSocket connected');
+                console.log('WebSocket connected successfully');
                 clearInterval(reconnectInterval);
+                showNotification('Połączono z systemem powiadomień', 'success');
                 
                 // Wyślij ping co 30 sekund, żeby utrzymać połączenie
                 setInterval(() => {
@@ -1435,7 +1437,7 @@
             };
 
             websocket.onclose = function(event) {
-                console.log('WebSocket disconnected');
+                console.log('WebSocket disconnected. Code:', event.code, 'Reason:', event.reason);
                 showNotification('Utracono połączenie z systemem powiadomień', 'warning');
                 
                 // Spróbuj ponownie połączyć co 5 sekund
@@ -1447,6 +1449,7 @@
 
             websocket.onerror = function(error) {
                 console.error('WebSocket error:', error);
+                console.log('WebSocket readyState:', websocket.readyState);
                 showNotification('Błąd połączenia WebSocket', 'error');
             };
         }
