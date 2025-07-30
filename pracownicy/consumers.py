@@ -2,7 +2,7 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import User
-from django.core.cache import cache
+from django.utils import timezone
 from .models import ChatMessage
 
 class PracownicyConsumer(AsyncWebsocketConsumer):
@@ -10,26 +10,31 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
         self.room_name = 'pracownicy_updates'
         self.room_group_name = f'pracownicy_{self.room_name}'
 
-        # Dodaj do grupy
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+        try:
+            # Dodaj do grupy
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
 
-        await self.accept()
-        
-        # Wyślij wiadomość powitalną
-        await self.send(text_data=json.dumps({
-            'type': 'connection_established',
-            'message': 'Połączono z systemem powiadomień!'
-        }))
+            await self.accept()
+            
+            # Wyślij wiadomość powitalną
+            await self.send(text_data=json.dumps({
+                'type': 'connection_established',
+                'message': 'Połączono z systemem powiadomień!',
+                'server_time': str(timezone.now())
+            }))
 
-        # Wyślij historię czatu
-        chat_history = await self.get_chat_history()
-        await self.send(text_data=json.dumps({
-            'type': 'chat_history',
-            'messages': chat_history
-        }))
+            # Wyślij historię czatu
+            chat_history = await self.get_chat_history()
+            await self.send(text_data=json.dumps({
+                'type': 'chat_history',
+                'messages': chat_history
+            }))
+        except Exception as e:
+            print(f"Error in WebSocket connect: {e}")
+            await self.close()
 
     async def disconnect(self, close_code):
         # Usuń z grupy
@@ -138,110 +143,27 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f"room_{self.room_name}"
-        
-        # Pobierz username
-        user = self.scope.get('user')
-        if user and user.is_authenticated:
-            self.username = user.username
-        else:
-            self.username = f"Gość_{self.channel_name[-8:]}"
 
-        # Dodaj do grupy
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
         )
-        
-        # Dodaj do listy uczestników w cache
-        participants_key = f"room_participants_{self.room_name}"
-        participants = cache.get(participants_key, set())
-        participants.add(self.username)
-        cache.set(participants_key, participants, 3600)  # 1 godzina
-        
         await self.accept()
-        
-        # Powiadom wszystkich o nowym użytkowniku
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'user_joined',
-                'username': self.username,
-                'participants': list(participants)
-            }
-        )
 
     async def disconnect(self, close_code):
-        # Usuń z listy uczestników w cache
-        participants_key = f"room_participants_{self.room_name}"
-        participants = cache.get(participants_key, set())
-        participants.discard(self.username)
-        
-        if participants:
-            cache.set(participants_key, participants, 3600)
-        else:
-            cache.delete(participants_key)
-        
-        # Powiadom wszystkich o opuszczeniu
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'user_left',
-                'username': self.username,
-                'participants': list(participants)
-            }
-        )
-        
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
     async def receive(self, text_data):
-        try:
-            data = json.loads(text_data)
-            
-            # Dodaj informację o nadawcy do wiadomości
-            data['from'] = self.username
-            
-            # Przekaż sygnały WebRTC do wszystkich uczestników
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'signal_message',
-                    'message': json.dumps(data),
-                    'sender': self.channel_name
-                }
-            )
-        except json.JSONDecodeError:
-            # Fallback dla surowych danych - dodaj username
-            fallback_data = {
-                'raw_data': text_data,
-                'from': self.username
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'signal_message',
+                'message': text_data
             }
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'signal_message',
-                    'message': json.dumps(fallback_data),
-                    'sender': self.channel_name
-                }
-            )
+        )
 
     async def signal_message(self, event):
-        # Nie wysyłaj wiadomości z powrotem do nadawcy
-        if event.get('sender') != self.channel_name:
-            await self.send(text_data=event['message'])
-
-    async def user_joined(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'user_joined',
-            'username': event['username'],
-            'participants': event['participants']
-        }))
-
-    async def user_left(self, event):
-        await self.send(text_data=json.dumps({
-            'type': 'user_left',
-            'username': event['username'],
-            'participants': event['participants']
-        }))
+        await self.send(text_data=event['message'])

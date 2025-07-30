@@ -1,4 +1,4 @@
-from django.urls import path, include
+from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
 from .views_set_password import set_password_after_social
@@ -26,5 +26,4 @@ urlpatterns = [
     path('obecnosc/historia/<int:pracownik_id>/', views.historia_obecnosci, name='historia_obecnosci_pracownik'),
     path('obecnosc/statusy/', views.zarzadzaj_statusy, name='zarzadzaj_statusy'),
     path('obecnosc/ustaw-urlop/', views.ustaw_urlop, name='ustaw_urlop'),
-    path('room/<str:room_name>/', views.room_view, name='room'),
 ]

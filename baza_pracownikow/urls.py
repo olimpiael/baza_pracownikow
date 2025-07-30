@@ -22,7 +22,7 @@ from django.contrib.auth import logout
 from pracownicy import views
 from django.conf import settings
 from django.conf.urls.static import static
-from pracownicy.views import VoiceRoomViewSet
+
 
 def logged_out_view(request):
     return render(request, 'registration/logged_out.html')
@@ -34,7 +34,7 @@ def custom_logout_view(request):
 router = routers.DefaultRouter()
 router.register(r'api/pracownicy', views.PracownikViewSet)
 router.register(r'api/zespoly', views.ZespolViewSet)
-router.register(r'voice_rooms', VoiceRoomViewSet, basename='voice_room')
+
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [

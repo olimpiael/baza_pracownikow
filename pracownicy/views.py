@@ -16,26 +16,15 @@ import io
 from datetime import datetime, date
 from typing import Dict, List, Any
 from django.db.models import Count, Q
-from datetime import date, timedelta
-from .models import Obecnosc, DzienPracy
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import io
-from .models import DzienPracy, Pracownik, Zespol, Stanowisko, Rola
+from .models import Pracownik, Zespol, Stanowisko, Rola
 from .serializers import CVUploadSerializer, PracownikSerializer, ZespolSerializer
 from .validators import validate_pesel
-from datetime import date
-from .models import Obecnosc
-from datetime import date, timedelta
-from .models import Obecnosc, DzienPracy
-from datetime import date, timedelta
-from .models import DzienPracy
-from django.db.models import Avg
-from datetime import date, timedelta
-from .models import DzienPracy, Pracownik, Zespol
-from .models import DzienPracy
+
 
 def validate_field_value(field_name, field_value):
     """
@@ -1364,7 +1353,10 @@ def delete_document(request, pracownik_id, document_type):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+
+# ================================
 # SYSTEM OBECNOŚCI
+# ================================
 
 @login_required
 def system_obecnosci(request):
@@ -1376,7 +1368,10 @@ def system_obecnosci(request):
     except:
         messages.error(request, "Nie jesteś przypisany do żadnego pracownika.")
         return redirect('lista_pracownikow')
-
+    
+    # Pobierz dzisiejsze wpisy obecności dla użytkownika
+    from datetime import date, datetime, timedelta
+    from .models import Obecnosc, DzienPracy
     
     dzisiaj = date.today()
     
@@ -1462,7 +1457,9 @@ def odbij_obecnosc(request):
         
         adres_ip = get_client_ip(request)
         
-
+        # Sprawdź logikę odbicia
+        from datetime import date
+        from .models import Obecnosc
         
         dzisiaj = date.today()
         ostatnia_obecnosc = Obecnosc.objects.filter(
@@ -1511,6 +1508,7 @@ def odbij_obecnosc(request):
         )
         
         # Aktualizuj dzień pracy
+        from .models import DzienPracy
         dzien_pracy, created = DzienPracy.objects.get_or_create(
             pracownik=current_pracownik,
             data=dzisiaj
@@ -1548,6 +1546,9 @@ def raport_obecnosci(request):
         messages.error(request, "Nie masz uprawnień do przeglądania raportów obecności.")
         return redirect('system_obecnosci')
     
+    from datetime import date, timedelta
+    from .models import DzienPracy, Obecnosc
+    from django.db.models import Q, Sum, Avg
     
     # Parametry filtrowania
     dzisiaj = date.today()
@@ -1638,6 +1639,9 @@ def historia_obecnosci(request, pracownik_id=None):
             messages.error(request, "Pracownik nie został znaleziony.")
             return redirect('system_obecnosci')
     
+    from datetime import date, timedelta
+    from .models import Obecnosc, DzienPracy
+    
     # Parametry filtrowania
     dzisiaj = date.today()
     data_od = request.GET.get('data_od', (dzisiaj - timedelta(days=30)).strftime('%Y-%m-%d'))
@@ -1692,7 +1696,9 @@ def zarzadzaj_statusy(request):
              current_pracownik.rola.poziom_uprawnien <= 3)):
         messages.error(request, "Nie masz uprawnień do zarządzania statusami dni pracy.")
         return redirect('system_obecnosci')
-
+    
+    from datetime import date, timedelta
+    from .models import DzienPracy, Pracownik, Zespol
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1868,18 +1874,3 @@ def ustaw_urlop(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
-@login_required
-def room_view(request, room_name):
-    """Widok pokoju głosowego"""
-    return render(request, 'room.html', {
-        'room_name': room_name,
-        'current_user': getattr(request.user, 'pracownik', None)
-    })
-    
-from .models import VoiceRoom
-from .serializers import VoiceRoomSerializer
-
-class VoiceRoomViewSet(viewsets.ModelViewSet):
-    queryset = VoiceRoom.objects.all()
-    serializer_class = VoiceRoomSerializer

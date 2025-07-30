@@ -10,9 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
-import dj_database_url
-import os 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,10 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0)t-!u9g9^^@oip8q2hqs=*tx&8i7!@_5j9!3x=1t31xp-!p(a'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0)t-!u9g9^^@oip8q2hqs=*tx&8i7!@_5j9!3x=1t31xp-!p(a')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ["*"] 
 
@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'channels',
+    'corsheaders',
     'rest_framework',
     'django_filters',
     'pracownicy.apps.PracownicyConfig',
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
 SITE_ID = 1
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -90,7 +92,10 @@ WSGI_APPLICATION = 'baza_pracownikow.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))    
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 
@@ -155,10 +160,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Django Channels
 ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
 
+# Redis URL for Railway (will be set as environment variable)
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+
 CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
+    'default': {
+        'BACKEND': 'channels_redis.layers.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [REDIS_URL],
+        },
+    } if 'REDIS_URL' in os.environ else {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
 }
 
 # Login/Logout settings
@@ -209,6 +222,27 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://renewed-miracle-baza.up.railway.app",
+# CORS settings for websockets
+CORS_ALLOW_ALL_ORIGINS = True  # Only for development/testing
+CORS_ALLOW_CREDENTIALS = True
+
+# For production, use specific origins:
+# CORS_ALLOWED_ORIGINS = [
+#     "https://yourdomain.up.railway.app",
+# ]
+
+# WebSocket CORS settings
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'sec-websocket-key',
+    'sec-websocket-version',
+    'sec-websocket-protocol',
 ]
