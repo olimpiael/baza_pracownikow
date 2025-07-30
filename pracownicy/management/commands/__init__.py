@@ -1,0 +1,1 @@
+# Plik wymagany przez Python
