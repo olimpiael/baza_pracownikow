@@ -39,3 +39,4 @@ tzdata==2025.2
 urllib3==2.5.0
 zope.interface==7.2
 gunicorn==21.2.0
+dj-database-url
