@@ -26,4 +26,7 @@ urlpatterns = [
     path('obecnosc/historia/<int:pracownik_id>/', views.historia_obecnosci, name='historia_obecnosci_pracownik'),
     path('obecnosc/statusy/', views.zarzadzaj_statusy, name='zarzadzaj_statusy'),
     path('obecnosc/ustaw-urlop/', views.ustaw_urlop, name='ustaw_urlop'),
+    # Pokoje rozmów głosowych
+    path('room/', views.room_list, name='room_list'),
+    path('room/<str:room_name>/', views.room_detail, name='room_detail'),
 ]

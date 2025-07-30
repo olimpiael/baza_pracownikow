@@ -1874,3 +1874,25 @@ def ustaw_urlop(request):
         
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+# ===== POKOJE ROZMÓW GŁOSOWYCH =====
+
+@login_required
+def room_list(request):
+    """Lista dostępnych pokoi rozmów"""
+    rooms = [
+        {'name': 'general', 'display_name': 'Pokój Ogólny'},
+        {'name': 'hr', 'display_name': 'HR'},
+        {'name': 'it', 'display_name': 'IT'},
+        {'name': 'management', 'display_name': 'Zarządzanie'},
+    ]
+    return render(request, 'room_new.html', {'rooms': rooms})
+
+@login_required
+def room_detail(request, room_name):
+    """Szczegóły pokoju rozmów"""
+    return render(request, 'room.html', {
+        'room_name': room_name,
+        'user': request.user
+    })

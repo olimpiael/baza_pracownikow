@@ -429,6 +429,27 @@
             padding: 20px;
         }
         
+        /* Styl dla zdjęć profilowych */
+        .profile-image {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #e9ecef;
+        }
+        
+        .profile-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            border: 2px solid #e9ecef;
+        }
+        
         .chat-header {
             border-bottom: 1px solid #ddd;
             padding-bottom: 10px;
@@ -643,6 +664,9 @@
         
         <!-- Przycisk systemu obecności -->
         <a href="{% url 'system_obecnosci' %}" class="action-button" style="background-color: #28a745; text-decoration: none; color: white;">🕐 System obecności</a>
+        
+        <!-- Przycisk pokoi rozmów głosowych -->
+        <a href="{% url 'room_list' %}" class="action-button" style="background-color: #6f42c1; text-decoration: none; color: white;">🎤 Pokoje rozmów</a>
     </div>
     
     <!-- Formularz dodawania pracownika -->
@@ -835,6 +859,7 @@
                         {% endif %}
                     </a>
                 </th>
+                <th>Zdjęcie</th>
                 <th>
                     <a href="?sort=imie&order={% if current_sort == 'imie' and current_order == 'asc' %}desc{% else %}asc{% endif %}" class="sortable">
                         Imię
@@ -935,6 +960,18 @@
                         {% endif %}
                     {% endif %}
                 </td>
+                
+                <!-- Komórka zdjęcie -->
+                <td style="text-align: center; width: 60px;">
+                    {% if pracownik.zdjecie %}
+                        <img src="{{ pracownik.zdjecie.url }}" alt="Zdjęcie {{ pracownik.imie }}" class="profile-image">
+                    {% else %}
+                        <div class="profile-placeholder">
+                            <span style="color: #6c757d; font-size: 20px;">👤</span>
+                        </div>
+                    {% endif %}
+                </td>
+                
                 <!-- Komórka imię - edytowalna -->
                 <td>
                     {% if edit_id == pracownik.id and edit_field == 'imie' and can_edit %}
@@ -1333,7 +1370,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="{% if can_delete_employees %}13{% else %}12{% endif %}" style="text-align: center; color: #666;">Brak pracowników w bazie</td>
+                <td colspan="{% if can_delete_employees %}14{% else %}13{% endif %}" style="text-align: center; color: #666;">Brak pracowników w bazie</td>
             </tr>
             {% endfor %}
         </tbody>
