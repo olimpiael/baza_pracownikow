@@ -28,6 +28,21 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ["*"] 
 
+# CSRF settings for Railway
+CSRF_TRUSTED_ORIGINS = [
+    "https://renewed-miracle-baza.up.railway.app",
+    "https://*.up.railway.app",  # For any Railway subdomain
+    "http://localhost:8000",     # For local development
+    "http://127.0.0.1:8000",     # For local development
+]
+
+# Get Railway domain from environment if available
+if 'RAILWAY_PUBLIC_DOMAIN' in os.environ:
+    CSRF_TRUSTED_ORIGINS.append(f"https://{os.environ['RAILWAY_PUBLIC_DOMAIN']}")
+
+# Session cookie settings for Railway
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') 
+
 
 # Application definition
 
@@ -233,14 +248,20 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
-# CORS settings for websockets
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development/testing
+# CORS settings for websockets and API
 CORS_ALLOW_CREDENTIALS = True
 
-# For production, use specific origins:
-# CORS_ALLOWED_ORIGINS = [
-#     "https://yourdomain.up.railway.app",
-# ]
+# Allow specific origins for production
+CORS_ALLOWED_ORIGINS = [
+    "https://renewed-miracle-baza.up.railway.app",
+    "https://*.up.railway.app",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+# For development, you can use CORS_ALLOW_ALL_ORIGINS = True
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 # WebSocket CORS settings
 CORS_ALLOW_HEADERS = [
