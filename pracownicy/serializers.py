@@ -22,9 +22,10 @@ class CVUploadSerializer(serializers.ModelSerializer):
         model = Pracownik
         fields = ['cv']
 
-from .models import VoiceRoom
-
-class VoiceRoomSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = VoiceRoom
-        fields = "__all__"
+# VoiceRoom model commented out - not implemented
+# from .models import VoiceRoom
+# 
+# class VoiceRoomSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = VoiceRoom
+#         fields = "__all__"
