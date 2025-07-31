@@ -223,8 +223,6 @@ EMAIL_HOST_PASSWORD = 'iqxsycuajnozndin'
 DEFAULT_FROM_EMAIL = 'baza.pracownikow.response@gmail.com'
 SERVER_EMAIL = 'baza.pracownikow.response@gmail.com'
 
-ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
-
 # Django allauth settings
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
