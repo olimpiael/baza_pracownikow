@@ -1232,13 +1232,29 @@ def upload_documents(request, pracownik_id):
     """Widok do wgrywania dokumentów dla pracownika"""
     try:
         pracownik = Pracownik.objects.get(id=pracownik_id)
-        current_user_pracownik = Pracownik.objects.get(user=request.user)
+        
+        # Bezpieczne pobranie current_user_pracownik
+        try:
+            current_user_pracownik = Pracownik.objects.get(user=request.user)
+        except Pracownik.DoesNotExist:
+            # Jeśli user nie ma powiązanego pracownika, sprawdź czy to superuser
+            if request.user.is_superuser:
+                # Dla superusera pozwól na dostęp
+                current_user_pracownik = None
+            else:
+                messages.error(request, 'Brak dostępu - nie jesteś zarejestrowanym pracownikiem.')
+                return redirect('lista_pracownikow')
         
         # Sprawdź uprawnienia
-        if not (current_user_pracownik.rola in ['admin', 'hr', 'ceo'] or 
-                current_user_pracownik.id == pracownik.id or
-                (current_user_pracownik.rola == 'kierownik' and 
-                 current_user_pracownik.zespol == pracownik.zespol)):
+        if current_user_pracownik is None:  # superuser
+            can_access = request.user.is_superuser
+        else:
+            can_access = (current_user_pracownik.rola in ['admin', 'hr', 'ceo'] or 
+                         current_user_pracownik.id == pracownik.id or
+                         (current_user_pracownik.rola == 'kierownik' and 
+                          current_user_pracownik.zespol == pracownik.zespol))
+        
+        if not can_access:
             messages.error(request, 'Brak uprawnień do zarządzania dokumentami tego pracownika.')
             return redirect('lista_pracownikow')
         
@@ -1281,11 +1297,20 @@ def upload_documents(request, pracownik_id):
         context = {
             'pracownik': pracownik,
             'current_user_pracownik': current_user_pracownik,
+            'is_superuser': request.user.is_superuser,
+            'user': request.user,
         }
         return render(request, 'pracownicy/upload_documents.html', context)
         
     except Pracownik.DoesNotExist:
         messages.error(request, 'Pracownik nie został znaleziony.')
+        return redirect('lista_pracownikow')
+    except Exception as e:
+        # Logowanie błędu dla debugowania
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Błąd w upload_documents: {str(e)}", exc_info=True)
+        messages.error(request, f'Wystąpił błąd: {str(e)}')
         return redirect('lista_pracownikow')
 
 
@@ -1294,13 +1319,25 @@ def download_document(request, pracownik_id, document_type):
     """Widok do pobierania dokumentów pracownika"""
     try:
         pracownik = Pracownik.objects.get(id=pracownik_id)
-        current_user_pracownik = Pracownik.objects.get(user=request.user)
+        
+        # Bezpieczne pobranie current_user_pracownik
+        try:
+            current_user_pracownik = Pracownik.objects.get(user=request.user)
+        except Pracownik.DoesNotExist:
+            if not request.user.is_superuser:
+                return JsonResponse({'error': 'Brak dostępu - nie jesteś zarejestrowanym pracownikiem'}, status=403)
+            current_user_pracownik = None
         
         # Sprawdź uprawnienia
-        if not (current_user_pracownik.rola in ['admin', 'hr', 'ceo'] or 
-                current_user_pracownik.id == pracownik.id or
-                (current_user_pracownik.rola == 'kierownik' and 
-                 current_user_pracownik.zespol == pracownik.zespol)):
+        if current_user_pracownik is None:  # superuser
+            can_access = request.user.is_superuser
+        else:
+            can_access = (current_user_pracownik.rola in ['admin', 'hr', 'ceo'] or 
+                         current_user_pracownik.id == pracownik.id or
+                         (current_user_pracownik.rola == 'kierownik' and 
+                          current_user_pracownik.zespol == pracownik.zespol))
+        
+        if not can_access:
             return JsonResponse({'error': 'Brak uprawnień'}, status=403)
         
         # Wybierz odpowiedni dokument
@@ -1331,10 +1368,22 @@ def delete_document(request, pracownik_id, document_type):
     
     try:
         pracownik = Pracownik.objects.get(id=pracownik_id)
-        current_user_pracownik = Pracownik.objects.get(user=request.user)
+        
+        # Bezpieczne pobranie current_user_pracownik
+        try:
+            current_user_pracownik = Pracownik.objects.get(user=request.user)
+        except Pracownik.DoesNotExist:
+            if not request.user.is_superuser:
+                return JsonResponse({'error': 'Brak dostępu - nie jesteś zarejestrowanym pracownikiem'}, status=403)
+            current_user_pracownik = None
         
         # Sprawdź uprawnienia (tylko admin, hr, ceo mogą usuwać dokumenty)
-        if not current_user_pracownik.rola in ['admin', 'hr', 'ceo']:
+        if current_user_pracownik is None:  # superuser
+            can_delete = request.user.is_superuser
+        else:
+            can_delete = current_user_pracownik.rola in ['admin', 'hr', 'ceo']
+        
+        if not can_delete:
             return JsonResponse({'error': 'Brak uprawnień do usuwania dokumentów'}, status=403)
         
         # Usuń dokument

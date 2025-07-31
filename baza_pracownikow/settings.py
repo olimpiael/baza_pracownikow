@@ -257,8 +257,16 @@ MEDIA_URL = '/media/'
 
 # Ensure media directory exists
 import os
-os.makedirs(MEDIA_ROOT, exist_ok=True)
-os.makedirs(MEDIA_ROOT / 'dokumenty' / 'zdjecia', exist_ok=True)
+try:
+    os.makedirs(MEDIA_ROOT, exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'zdjecia', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'cv', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'umowy', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'swiadectwa', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'dyplomy', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'inne', exist_ok=True)
+except Exception as e:
+    print(f"Warning: Could not create media directories: {e}")
 
 # WhiteNoise configuration for media files in production
 if not DEBUG:
