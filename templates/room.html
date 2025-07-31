@@ -193,7 +193,7 @@
 
     <script>
         const roomName = "{{ room_name }}";
-        const currentUsername = "{{ user.username|default:'Gość' }}";
+        const currentUsername = "{% if user.first_name and user.last_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}";
         function getCurrentUsername() {
             // Zwróć nazwę użytkownika - tutaj można dodać logikę dla zalogowanego użytkownika
             return currentUsername;
@@ -590,8 +590,10 @@
         });
 
         // Initialize
+        debugLog(`Voice room initialized - Room: ${roomName}, User: ${currentUsername}`);
+        debugLog(`WebSocket URL will be: ${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/room/${roomName}/`);
         initWebSocket();
-        debugLog('Voice room initialized');
+        debugLog('WebSocket initialization started');
     </script>
 </body>
 </html>
