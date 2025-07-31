@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load file_filters %}
 
 {% block title %}Dokumenty - {{ pracownik.imie }} {{ pracownik.nazwisko }}{% endblock %}
 
@@ -409,7 +410,7 @@
                 <div class="current-file">
                     <div class="file-info">
                         <div class="file-name">{{ pracownik.cv.name|slice:"11:" }}</div>
-                        <div class="file-size">{{ pracownik.cv.size|filesizeformat }}</div>
+                        <div class="file-size">{{ pracownik.cv|safe_filesize }}</div>
                     </div>
                 </div>
             {% endif %}
@@ -455,7 +456,7 @@
                 <div class="current-file">
                     <div class="file-info">
                         <div class="file-name">{{ pracownik.umowa_pracy.name|slice:"15:" }}</div>
-                        <div class="file-size">{{ pracownik.umowa_pracy.size|filesizeformat }}</div>
+                        <div class="file-size">{{ pracownik.umowa_pracy|safe_filesize }}</div>
                     </div>
                 </div>
             {% endif %}
@@ -501,7 +502,7 @@
                 <div class="current-file">
                     <div class="file-info">
                         <div class="file-name">{{ pracownik.swiadectwo_pracy.name|slice:"18:" }}</div>
-                        <div class="file-size">{{ pracownik.swiadectwo_pracy.size|filesizeformat }}</div>
+                        <div class="file-size">{{ pracownik.swiadectwo_pracy|safe_filesize }}</div>
                     </div>
                 </div>
             {% endif %}
@@ -547,7 +548,7 @@
                 <div class="current-file">
                     <div class="file-info">
                         <div class="file-name">{{ pracownik.dyplom.name|slice:"8:" }}</div>
-                        <div class="file-size">{{ pracownik.dyplom.size|filesizeformat }}</div>
+                        <div class="file-size">{{ pracownik.dyplom|safe_filesize }}</div>
                     </div>
                 </div>
             {% endif %}
@@ -593,7 +594,7 @@
                 <div class="current-file">
                     <div class="file-info">
                         <div class="file-name">{{ pracownik.zdjecie.name|slice:"8:" }}</div>
-                        <div class="file-size">{{ pracownik.zdjecie.size|filesizeformat }}</div>
+                        <div class="file-size">{{ pracownik.zdjecie|safe_filesize }}</div>
                     </div>
                     <img src="{{ pracownik.zdjecie.url }}" alt="Podgląd" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px; cursor: pointer;" onclick="showImagePreview('{{ pracownik.zdjecie.url }}', 'Zdjęcie pracownika')">
                 </div>
@@ -643,7 +644,7 @@
                 <div class="current-file">
                     <div class="file-info">
                         <div class="file-name">{{ pracownik.inne_dokumenty.name|slice:"16:" }}</div>
-                        <div class="file-size">{{ pracownik.inne_dokumenty.size|filesizeformat }}</div>
+                        <div class="file-size">{{ pracownik.inne_dokumenty|safe_filesize }}</div>
                     </div>
                 </div>
             {% endif %}
