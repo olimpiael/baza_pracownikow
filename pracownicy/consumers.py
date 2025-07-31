@@ -223,6 +223,19 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
         try:
             print(f"VoiceRoom WebSocket: Received data from {self.username}: {text_data[:100]}...")
             
+            # Sprawdź czy to ping/pong
+            try:
+                data = json.loads(text_data)
+                if data.get('type') == 'ping':
+                    await self.send(text_data=json.dumps({
+                        'type': 'pong',
+                        'timestamp': data.get('timestamp')
+                    }))
+                    print(f"VoiceRoom WebSocket: Sent pong to {self.username}")
+                    return
+            except json.JSONDecodeError:
+                pass  # Nie JSON, kontynuuj jako sygnał WebRTC
+            
             # Przekaż sygnał do wszystkich w pokoju
             await self.channel_layer.group_send(
                 self.room_group_name,

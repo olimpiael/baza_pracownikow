@@ -6,7 +6,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: Arial,                } else {
+                    debugLog('Max reconnect attempts reached');
+                    document.getElementById('status').innerHTML = '❌ Nie można połączyć z serwerem';
+                    document.getElementById('reconnectBtn').style.display = 'inline-block';
+                }
+            };
+
+            ws.onerror = function(e) {
+                debugLog('WebSocket error');
+                document.getElementById('status').innerHTML = '⚠️ Błąd połączenia';
+                document.getElementById('status').className = 'status error';
+            };
+        }
+
+        function manualReconnect() {
+            debugLog('Manual reconnect triggered');
+            reconnectAttempts = 0; // Reset attempts
+            document.getElementById('reconnectBtn').style.display = 'none';
+            
+            // Zatrzymaj poprzedni timeout
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+            
+            // Zamknij poprzednie połączenie jeśli istnieje
+            if (ws) {
+                ws.close();
+            }
+            
+            initWebSocket();
+        };
             max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
@@ -146,6 +176,7 @@
         <div class="controls">
             <button id="startBtn" onclick="startCall()">🎤 Dołącz do rozmowy</button>
             <button id="endBtn" onclick="endCall()" disabled>📞 Zakończ rozmowę</button>
+            <button id="reconnectBtn" onclick="manualReconnect()" style="display: none;">🔄 Połącz ponownie</button>
         </div>
         
         <div class="participants-section">
@@ -175,6 +206,9 @@
         let localStream;
         let peers = {};
         let isCallActive = false;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+        let reconnectTimeout;
 
         // Debug logging
         function debugLog(message) {
@@ -198,11 +232,26 @@
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/room/${roomName}/`);
+            let pingInterval;
 
             ws.onopen = function(e) {
                 debugLog('WebSocket connected');
                 document.getElementById('status').innerHTML = `✅ Połączono z pokojem: ${roomName}`;
                 document.getElementById('status').className = 'status connected';
+                
+                // Reset reconnect attempts po udanym połączeniu
+                reconnectAttempts = 0;
+                
+                // Rozpocznij ping co 20 sekund (częściej dla Railway)
+                pingInterval = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'ping',
+                            timestamp: Date.now()
+                        }));
+                        debugLog('Sent ping');
+                    }
+                }, 20000);
             };
 
             ws.onclose = function(e) {
@@ -210,11 +259,25 @@
                 document.getElementById('status').innerHTML = '❌ Rozłączono z pokoju';
                 document.getElementById('status').className = 'status error';
                 
-                // Try to reconnect after 3 seconds
-                setTimeout(() => {
-                    debugLog('Attempting to reconnect...');
-                    initWebSocket();
-                }, 3000);
+                // Zatrzymaj ping
+                if (pingInterval) {
+                    clearInterval(pingInterval);
+                }
+                
+                // Exponential backoff reconnect
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                    reconnectAttempts++;
+                    
+                    debugLog(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
+                    
+                    reconnectTimeout = setTimeout(() => {
+                        initWebSocket();
+                    }, delay);
+                } else {
+                    debugLog('Max reconnect attempts reached');
+                    document.getElementById('status').innerHTML = '❌ Nie można połączyć z serwerem';
+                }
             };
 
             ws.onerror = function(e) {
@@ -227,6 +290,11 @@
                 try {
                     const data = JSON.parse(e.data);
                     debugLog(`Received: ${data.type || 'signal'}`);
+                    
+                    if (data.type === 'pong') {
+                        debugLog('Received pong - connection alive');
+                        return;
+                    }
                     
                     if (data.type === 'user_joined') {
                         if (data.username !== currentUsername) {
@@ -577,6 +645,9 @@
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
             endCall();
             if (ws) {
                 ws.close();
