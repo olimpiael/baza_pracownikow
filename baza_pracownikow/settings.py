@@ -189,15 +189,19 @@ ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
 # Redis URL for Railway (will be set as environment variable)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-# TYMCZASOWO: wymuś InMemory layer dla debugowania
+# TYMCZASOWO: użyj prostszego channel layer dla voice rooms
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'CONFIG': {
+            'capacity': 100,  # Zmniejszone z domyślnego
+            'expiry': 5,      # Krótszy czas wygaśnięcia
+        }
     }
 }
-print("Using InMemory channel layer (forced for debugging)")
+print("Using InMemory channel layer with reduced settings for debugging")
 
-# Zakomentowane - przywróć gdy Redis będzie działać
+# Zakomentowane - przywróć gdy znajdziemy przyczynę problemu
 # # Use Redis in production if available, InMemory for local development
 # if 'REDIS_URL' in os.environ:
 #     try:

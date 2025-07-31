@@ -154,35 +154,41 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
 
 class VoiceRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        print(f"VoiceRoom WebSocket: Attempting to connect")
-        self.room_name = self.scope['url_route']['kwargs']['room_name']
-        self.room_group_name = f"room_{self.room_name}"
-        self.user = self.scope.get("user")
+        print(f"VoiceRoom WebSocket: Attempting to connect from {self.scope.get('client', ['unknown', 'unknown'])[0]}")
         
-        # Sprawdź czy użytkownik jest zalogowany
-        if not self.user or not self.user.is_authenticated:
-            print("VoiceRoom WebSocket: User not authenticated")
-            await self.close()
-            return
-            
-        self.username = getattr(self.user, 'first_name', '') + ' ' + getattr(self.user, 'last_name', '')
-        if not self.username.strip():
-            self.username = self.user.username
-            
-        print(f"VoiceRoom WebSocket: User {self.username} connecting to room {self.room_name}")
-
         try:
+            self.room_name = self.scope['url_route']['kwargs']['room_name']
+            self.room_group_name = f"room_{self.room_name}"
+            self.user = self.scope.get("user")
+            
+            print(f"VoiceRoom WebSocket: Room: {self.room_name}, User: {self.user}")
+            
+            # Sprawdź czy użytkownik jest zalogowany
+            if not self.user or not self.user.is_authenticated:
+                print("VoiceRoom WebSocket: User not authenticated")
+                await self.close(code=4001)  # Custom close code
+                return
+                
+            self.username = getattr(self.user, 'first_name', '') + ' ' + getattr(self.user, 'last_name', '')
+            if not self.username.strip():
+                self.username = self.user.username
+                
+            print(f"VoiceRoom WebSocket: User {self.username} connecting to room {self.room_name}")
+
             # Sprawdź czy channel_layer jest dostępny  
             if not hasattr(self, 'channel_layer') or self.channel_layer is None:
                 print("VoiceRoom WebSocket: Channel layer not available")
-                await self.close()
+                await self.close(code=4002)  # Custom close code
                 return
                 
+            print(f"VoiceRoom WebSocket: Channel layer available: {type(self.channel_layer)}")
+            
             # Dodaj do grupy
             await self.channel_layer.group_add(
                 self.room_group_name,
                 self.channel_name
             )
+            print(f"VoiceRoom WebSocket: Added to group {self.room_group_name}")
             
             await self.accept()
             print(f"VoiceRoom WebSocket: Connection accepted for {self.username}")
@@ -199,25 +205,36 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
             
         except Exception as e:
             print(f"VoiceRoom WebSocket: Error in connect: {e}")
-            await self.close()
+            import traceback
+            traceback.print_exc()
+            await self.close(code=4003)  # Custom close code
 
     async def disconnect(self, close_code):
-        print(f"VoiceRoom WebSocket: {self.username} disconnecting from {self.room_name}, code: {close_code}")
+        print(f"VoiceRoom WebSocket: {getattr(self, 'username', 'Unknown')} disconnecting from {getattr(self, 'room_name', 'Unknown')}, code: {close_code}")
         
-        # Usuń z grupy
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
-        
-        # Powiadom innych o opuszczeniu - bez lokalnego słownika
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'user_left',
-                'username': self.username,
-            }
-        )
+        try:
+            # Usuń z grupy
+            if hasattr(self, 'room_group_name') and hasattr(self, 'channel_name'):
+                await self.channel_layer.group_discard(
+                    self.room_group_name,
+                    self.channel_name
+                )
+                print(f"VoiceRoom WebSocket: Removed from group {self.room_group_name}")
+            
+            # Powiadom innych o opuszczeniu - bez lokalnego słownika
+            if hasattr(self, 'room_group_name') and hasattr(self, 'username'):
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        'type': 'user_left',
+                        'username': self.username,
+                    }
+                )
+                print(f"VoiceRoom WebSocket: Sent user_left event for {self.username}")
+        except Exception as e:
+            print(f"VoiceRoom WebSocket: Error in disconnect: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def receive(self, text_data):
         try:

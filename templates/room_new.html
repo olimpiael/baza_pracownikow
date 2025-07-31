@@ -219,6 +219,27 @@
             debugDiv.scrollTop = debugDiv.scrollHeight;
         }
 
+        function getCloseCodeDescription(code) {
+            const codes = {
+                1000: 'Normal Closure',
+                1001: 'Going Away',
+                1002: 'Protocol Error',
+                1003: 'Unsupported Data',
+                1005: 'No Status Received',
+                1006: 'Abnormal Closure (Railway timeout/restart?)',
+                1007: 'Invalid frame payload data',
+                1008: 'Policy Violation',
+                1009: 'Message Too Big',
+                1010: 'Mandatory Extension',
+                1011: 'Internal Server Error',
+                1015: 'TLS handshake',
+                4001: 'User not authenticated',
+                4002: 'Channel layer not available',
+                4003: 'Server error during connect'
+            };
+            return codes[code] || `Unknown code: ${code}`;
+        }
+
         // Toggle debug panel with Ctrl+D
         document.addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'd') {
@@ -255,7 +276,10 @@
             };
 
             ws.onclose = function(e) {
-                debugLog(`WebSocket disconnected: ${e.code}`);
+                debugLog(`WebSocket disconnected: ${e.code} (${getCloseCodeDescription(e.code)})`);
+                debugLog(`Close reason: ${e.reason || 'No reason provided'}`);
+                debugLog(`Was clean: ${e.wasClean}`);
+                
                 document.getElementById('status').innerHTML = '❌ Rozłączono z pokoju';
                 document.getElementById('status').className = 'status error';
                 
@@ -277,6 +301,7 @@
                 } else {
                     debugLog('Max reconnect attempts reached');
                     document.getElementById('status').innerHTML = '❌ Nie można połączyć z serwerem';
+                    document.getElementById('reconnectBtn').style.display = 'inline-block';
                 }
             };
 
