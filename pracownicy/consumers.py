@@ -14,6 +14,12 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'pracownicy_{self.room_name}'
 
         try:
+            # Sprawdź czy channel_layer jest dostępny
+            if not hasattr(self, 'channel_layer') or self.channel_layer is None:
+                print("WebSocket: Channel layer not available")
+                await self.close()
+                return
+                
             # Dodaj do grupy
             await self.channel_layer.group_add(
                 self.room_group_name,
@@ -134,7 +140,7 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_chat_history(self, limit=50):
         """Pobiera historię czatu z bazy danych"""
-        messages = ChatMessage.objects.filter(is_deleted=False)[:limit]
+        messages = ChatMessage.objects.filter(is_deleted=False).order_by('timestamp')[:limit]
         history = []
         for msg in messages:
             history.append({
@@ -143,7 +149,7 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
                 'timestamp': msg.timestamp.strftime('%H:%M'),
                 'message_id': msg.id
             })
-        return list(reversed(history))  # Odwracamy kolejność, aby najnowsze były na końcu
+        return history  # Zwracamy w kolejności chronologicznej (najstarsze pierwsze)
     
 
 class VoiceRoomConsumer(AsyncWebsocketConsumer):

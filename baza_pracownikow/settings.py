@@ -189,24 +189,44 @@ ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
 # Redis URL for Railway (will be set as environment variable)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-# Use Redis in production if available, InMemory for local development
-if 'REDIS_URL' in os.environ and os.environ.get('RAILWAY_ENVIRONMENT'):
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.layers.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [REDIS_URL],
-            },
-        }
+# TYMCZASOWO: wymuś InMemory layer dla debugowania
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
     }
-    print(f"Using Redis channel layer: {REDIS_URL}")
-else:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer'
-        }
-    }
-    print("Using InMemory channel layer")
+}
+print("Using InMemory channel layer (forced for debugging)")
+
+# Zakomentowane - przywróć gdy Redis będzie działać
+# # Use Redis in production if available, InMemory for local development
+# if 'REDIS_URL' in os.environ:
+#     try:
+#         CHANNEL_LAYERS = {
+#             'default': {
+#                 'BACKEND': 'channels_redis.layers.RedisChannelLayer',
+#                 'CONFIG': {
+#                     "hosts": [REDIS_URL],
+#                     "capacity": 1500,
+#                     "expiry": 10,
+#                 },
+#             }
+#         }
+#         print(f"Using Redis channel layer: {REDIS_URL}")
+#     except Exception as e:
+#         print(f"Redis connection failed: {e}")
+#         CHANNEL_LAYERS = {
+#             'default': {
+#                 'BACKEND': 'channels.layers.InMemoryChannelLayer'
+#             }
+#         }
+#         print("Fallback to InMemory channel layer")
+# else:
+#     CHANNEL_LAYERS = {
+#         'default': {
+#             'BACKEND': 'channels.layers.InMemoryChannelLayer'
+#         }
+#     }
+#     print("Using InMemory channel layer")
 
 # Login/Logout settings
 LOGIN_URL = '/accounts/login/'
