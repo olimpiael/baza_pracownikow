@@ -153,9 +153,6 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
     
 
 class VoiceRoomConsumer(AsyncWebsocketConsumer):
-    # Słownik do śledzenia uczestników pokojów
-    room_participants = {}
-    
     async def connect(self):
         print(f"VoiceRoom WebSocket: Attempting to connect")
         self.room_name = self.scope['url_route']['kwargs']['room_name']
@@ -175,6 +172,12 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
         print(f"VoiceRoom WebSocket: User {self.username} connecting to room {self.room_name}")
 
         try:
+            # Sprawdź czy channel_layer jest dostępny  
+            if not hasattr(self, 'channel_layer') or self.channel_layer is None:
+                print("VoiceRoom WebSocket: Channel layer not available")
+                await self.close()
+                return
+                
             # Dodaj do grupy
             await self.channel_layer.group_add(
                 self.room_group_name,
@@ -184,18 +187,12 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
             await self.accept()
             print(f"VoiceRoom WebSocket: Connection accepted for {self.username}")
             
-            # Dodaj użytkownika do listy uczestników
-            if self.room_name not in self.room_participants:
-                self.room_participants[self.room_name] = set()
-            self.room_participants[self.room_name].add(self.username)
-            
-            # Powiadom innych o dołączeniu
+            # Powiadom innych o dołączeniu - bez lokalnego słownika
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
                     'type': 'user_joined',
                     'username': self.username,
-                    'participants': list(self.room_participants[self.room_name])
                 }
             )
             print(f"VoiceRoom WebSocket: Sent user_joined event for {self.username}")
@@ -213,23 +210,14 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
         
-        # Usuń użytkownika z listy uczestników
-        if self.room_name in self.room_participants:
-            self.room_participants[self.room_name].discard(self.username)
-            
-            # Powiadom innych o opuszczeniu
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'user_left',
-                    'username': self.username,
-                    'participants': list(self.room_participants[self.room_name])
-                }
-            )
-            
-            # Usuń pokój jeśli pusty
-            if not self.room_participants[self.room_name]:
-                del self.room_participants[self.room_name]
+        # Powiadom innych o opuszczeniu - bez lokalnego słownika
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'user_left',
+                'username': self.username,
+            }
+        )
 
     async def receive(self, text_data):
         try:
@@ -256,12 +244,10 @@ class VoiceRoomConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             'type': 'user_joined',
             'username': event['username'],
-            'participants': event['participants']
         }))
     
     async def user_left(self, event):
         await self.send(text_data=json.dumps({
             'type': 'user_left',
             'username': event['username'], 
-            'participants': event['participants']
         }))

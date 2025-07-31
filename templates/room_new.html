@@ -229,9 +229,11 @@
                     debugLog(`Received: ${data.type || 'signal'}`);
                     
                     if (data.type === 'user_joined') {
-                        updateParticipants(data.participants);
                         if (data.username !== currentUsername) {
                             document.getElementById('status').innerHTML = `👋 ${data.username} dołączył do pokoju`;
+                            
+                            // Dodaj do listy uczestników
+                            addParticipant(data.username);
                             
                             // If we're in a call, create connection to new user
                             if (isCallActive && !peers[data.username]) {
@@ -240,9 +242,11 @@
                             }
                         }
                     } else if (data.type === 'user_left') {
-                        updateParticipants(data.participants);
                         if (data.username !== currentUsername) {
                             document.getElementById('status').innerHTML = `👋 ${data.username} opuścił pokój`;
+                            
+                            // Usuń z listy uczestników
+                            removeParticipant(data.username);
                             
                             // Clean up connection
                             if (peers[data.username]) {
@@ -278,7 +282,14 @@
             const peer = new RTCPeerConnection({
                 iceServers: [
                     { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' }
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' },
+                    // Dodatkowe publiczne STUN serwery
+                    { urls: 'stun:stun.stunprotocol.org:3478' },
+                    { urls: 'stun:stun.voiparound.com' },
+                    { urls: 'stun:stun.voipbuster.com' },
                 ]
             });
 
@@ -415,12 +426,19 @@
             try {
                 debugLog('Starting call...');
                 
+                // Sprawdź czy HTTPS jest używane na produkcji
+                if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    throw new Error('WebRTC wymaga HTTPS na produkcji');
+                }
+                
                 // Get microphone access
                 localStream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
-                        autoGainControl: true
+                        autoGainControl: true,
+                        sampleRate: 44100,
+                        channelCount: 1
                     },
                     video: false
                 });
@@ -447,7 +465,17 @@
                 
             } catch (error) {
                 debugLog(`Error starting call: ${error.message}`);
-                document.getElementById('status').innerHTML = `❌ Błąd: ${error.message}`;
+                let errorMessage = error.message;
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Dostęp do mikrofonu został odrzucony. Sprawdź ustawienia przeglądarki.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'Nie znaleziono mikrofonu. Sprawdź czy urządzenie audio jest podłączone.';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Mikrofon jest używany przez inną aplikację.';
+                }
+                
+                document.getElementById('status').innerHTML = `❌ Błąd: ${errorMessage}`;
                 document.getElementById('status').className = 'status error';
             }
         }
@@ -508,6 +536,43 @@
             });
             
             debugLog(`Updated participants: ${participants.join(', ')}`);
+        }
+
+        function addParticipant(username) {
+            const list = document.getElementById('participantList');
+            
+            // Usuń "Brak uczestników" jeśli istnieje
+            const noParticipants = list.querySelector('li');
+            if (noParticipants && noParticipants.textContent === 'Brak uczestników') {
+                list.innerHTML = '';
+            }
+            
+            // Sprawdź czy już istnieje
+            const existing = Array.from(list.children).find(li => 
+                li.textContent.includes(username)
+            );
+            
+            if (!existing) {
+                const li = document.createElement('li');
+                li.textContent = username;
+                li.id = `participant_${username}`;
+                list.appendChild(li);
+                debugLog(`Added participant: ${username}`);
+            }
+        }
+
+        function removeParticipant(username) {
+            const participant = document.getElementById(`participant_${username}`);
+            if (participant) {
+                participant.remove();
+                debugLog(`Removed participant: ${username}`);
+            }
+            
+            // Jeśli brak uczestników, pokaż komunikat
+            const list = document.getElementById('participantList');
+            if (list.children.length === 0) {
+                list.innerHTML = '<li>Brak uczestników</li>';
+            }
         }
 
         // Cleanup on page unload
