@@ -40,13 +40,6 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"Error in WebSocket connect: {e}")
             await self.close()
-            await self.send(text_data=json.dumps({
-                'type': 'chat_history',
-                'messages': chat_history
-            }))
-        except Exception as e:
-            print(f"Error in WebSocket connect: {e}")
-            await self.close()
 
     async def disconnect(self, close_code):
         # Usuń z grupy
