@@ -16,10 +16,11 @@ Including another URLconf
 """
 from rest_framework import routers
 from django.contrib import admin
-from django.urls import  include, path
+from django.urls import  include, path, re_path
 from django.shortcuts import render
 from django.contrib.auth import logout
 from pracownicy import views
+from pracownicy.media_views import serve_media
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -48,9 +49,14 @@ urlpatterns = [
     path('auth/registration/', include('dj_rest_auth.registration.urls')),
     path('accounts/', include('allauth.urls')),
     path('accounts/', include('allauth.socialaccount.urls')),  # social login
+    # Media files serving in production
+    re_path(r'^media/(?P<path>.*)$', serve_media, name='media'),
 ]
 
-# Serve static files in development
+# Serve static and media files
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # Serve media files in production (Railway)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

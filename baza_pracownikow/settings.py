@@ -255,6 +255,17 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
 
+# Ensure media directory exists
+import os
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+os.makedirs(MEDIA_ROOT / 'dokumenty' / 'zdjecia', exist_ok=True)
+
+# WhiteNoise configuration for media files in production
+if not DEBUG:
+    # In production, serve media files through WhiteNoise
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
+
 # CORS settings for websockets and API
 CORS_ALLOW_CREDENTIALS = True
 
