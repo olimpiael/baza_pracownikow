@@ -5,6 +5,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import ChatMessage
 
+print("Loading consumers.py - imports successful")
+
 class PracownicyConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         print("WebSocket: Attempting to connect")

@@ -189,23 +189,24 @@ ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
 # Redis URL for Railway (will be set as environment variable)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+# Use Redis in production if available, InMemory for local development
+if 'REDIS_URL' in os.environ and os.environ.get('RAILWAY_ENVIRONMENT'):
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.layers.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [REDIS_URL],
+            },
+        }
     }
-}
-
-# Redis config - commented out for debugging
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels_redis.layers.RedisChannelLayer',
-#         'CONFIG': {
-#             "hosts": [REDIS_URL],
-#         },
-#     } if 'REDIS_URL' in os.environ else {
-#         'BACKEND': 'channels.layers.InMemoryChannelLayer'
-#     }
-# }
+    print(f"Using Redis channel layer: {REDIS_URL}")
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        }
+    }
+    print("Using InMemory channel layer")
 
 # Login/Logout settings
 LOGIN_URL = '/accounts/login/'
