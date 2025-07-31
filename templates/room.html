@@ -193,7 +193,7 @@
 
     <script>
         const roomName = "{{ room_name }}";
-        const currentUsername = "{{ user.username|default:'Gość' }}";
+        const currentUsername = "{% if user.first_name and user.last_name %}{{ user.first_name }} {{ user.last_name }}{% else %}{{ user.username }}{% endif %}";
         function getCurrentUsername() {
             // Zwróć nazwę użytkownika - tutaj można dodać logikę dla zalogowanego użytkownika
             return currentUsername;
@@ -247,28 +247,55 @@
         // WebSocket connection
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws/room/${roomName}/`);
+            const wsUrl = `${protocol}//${window.location.host}/ws/room/${roomName}/`;
+            debugLog(`Attempting WebSocket connection to: ${wsUrl}`);
+            debugLog(`Room: ${roomName}, User: ${currentUsername}`);
+            
+            ws = new WebSocket(wsUrl);
 
             ws.onopen = function(e) {
-                debugLog('WebSocket connected');
+                debugLog('WebSocket connected successfully');
                 document.getElementById('status').innerHTML = `✅ Połączono z pokojem: ${roomName}`;
                 document.getElementById('status').className = 'status connected';
             };
 
             ws.onclose = function(e) {
-                debugLog(`WebSocket disconnected: ${e.code}`);
+                debugLog(`WebSocket disconnected: code=${e.code}, reason="${e.reason}", wasClean=${e.wasClean}`);
                 document.getElementById('status').innerHTML = '❌ Rozłączono z pokoju';
                 document.getElementById('status').className = 'status error';
                 
-                // Try to reconnect after 3 seconds
-                setTimeout(() => {
-                    debugLog('Attempting to reconnect...');
-                    initWebSocket();
-                }, 3000);
+                // Detailed error explanation
+                let errorMsg = '';
+                switch(e.code) {
+                    case 1000:
+                        errorMsg = 'Normalne zamknięcie';
+                        break;
+                    case 1001:
+                        errorMsg = 'Serwer się rozłączył';
+                        break;
+                    case 1006:
+                        errorMsg = 'Połączenie przerwane (może być problem z ASGI/Daphne)';
+                        break;
+                    case 1011:
+                        errorMsg = 'Błąd serwera';
+                        break;
+                    default:
+                        errorMsg = `Nieznany kod błędu: ${e.code}`;
+                }
+                debugLog(`Error details: ${errorMsg}`);
+                
+                // Try to reconnect after 3 seconds, but only if not a normal close
+                if (e.code !== 1000) {
+                    setTimeout(() => {
+                        debugLog('Attempting to reconnect...');
+                        initWebSocket();
+                    }, 3000);
+                }
             };
 
             ws.onerror = function(e) {
-                debugLog('WebSocket error');
+                debugLog('WebSocket error occurred');
+                debugLog(`Error event: ${JSON.stringify(e)}`);
                 document.getElementById('status').innerHTML = '⚠️ Błąd połączenia';
                 document.getElementById('status').className = 'status error';
             };
@@ -590,8 +617,10 @@
         });
 
         // Initialize
+        debugLog(`Voice room initialized - Room: ${roomName}, User: ${currentUsername}`);
+        debugLog(`WebSocket URL will be: ${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/room/${roomName}/`);
         initWebSocket();
-        debugLog('Voice room initialized');
+        debugLog('WebSocket initialization started');
     </script>
 </body>
 </html>

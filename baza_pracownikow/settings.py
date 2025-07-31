@@ -189,23 +189,24 @@ ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
 # Redis URL for Railway (will be set as environment variable)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+# Use Redis in production if available, InMemory for local development
+if 'REDIS_URL' in os.environ and os.environ.get('RAILWAY_ENVIRONMENT'):
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.layers.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [REDIS_URL],
+            },
+        }
     }
-}
-
-# Redis config - commented out for debugging
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels_redis.layers.RedisChannelLayer',
-#         'CONFIG': {
-#             "hosts": [REDIS_URL],
-#         },
-#     } if 'REDIS_URL' in os.environ else {
-#         'BACKEND': 'channels.layers.InMemoryChannelLayer'
-#     }
-# }
+    print(f"Using Redis channel layer: {REDIS_URL}")
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
+        }
+    }
+    print("Using InMemory channel layer")
 
 # Login/Logout settings
 LOGIN_URL = '/accounts/login/'
@@ -252,6 +253,25 @@ SOCIALACCOUNT_LOGIN_ON_GET = True
 
 MEDIA_ROOT = BASE_DIR / 'media'
 MEDIA_URL = '/media/'
+
+# Ensure media directory exists
+import os
+try:
+    os.makedirs(MEDIA_ROOT, exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'zdjecia', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'cv', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'umowy', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'swiadectwa', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'dyplomy', exist_ok=True)
+    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'inne', exist_ok=True)
+except Exception as e:
+    print(f"Warning: Could not create media directories: {e}")
+
+# WhiteNoise configuration for media files in production
+if not DEBUG:
+    # In production, serve media files through WhiteNoise
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
 
 # CORS settings for websockets and API
 CORS_ALLOW_CREDENTIALS = True

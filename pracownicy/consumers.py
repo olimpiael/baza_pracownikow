@@ -5,6 +5,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from .models import ChatMessage
 
+print("Loading consumers.py - imports successful")
+
 class PracownicyConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         print("WebSocket: Attempting to connect")
@@ -145,30 +147,115 @@ class PracownicyConsumer(AsyncWebsocketConsumer):
     
 
 class VoiceRoomConsumer(AsyncWebsocketConsumer):
+    # Słownik do śledzenia uczestników pokojów
+    room_participants = {}
+    
     async def connect(self):
+        print(f"VoiceRoom WebSocket: Attempting to connect")
         self.room_name = self.scope['url_route']['kwargs']['room_name']
         self.room_group_name = f"room_{self.room_name}"
+        self.user = self.scope.get("user")
+        
+        # Sprawdź czy użytkownik jest zalogowany
+        if not self.user or not self.user.is_authenticated:
+            print("VoiceRoom WebSocket: User not authenticated")
+            await self.close()
+            return
+            
+        self.username = getattr(self.user, 'first_name', '') + ' ' + getattr(self.user, 'last_name', '')
+        if not self.username.strip():
+            self.username = self.user.username
+            
+        print(f"VoiceRoom WebSocket: User {self.username} connecting to room {self.room_name}")
 
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-        await self.accept()
+        try:
+            # Dodaj do grupy
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
+            
+            await self.accept()
+            print(f"VoiceRoom WebSocket: Connection accepted for {self.username}")
+            
+            # Dodaj użytkownika do listy uczestników
+            if self.room_name not in self.room_participants:
+                self.room_participants[self.room_name] = set()
+            self.room_participants[self.room_name].add(self.username)
+            
+            # Powiadom innych o dołączeniu
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_joined',
+                    'username': self.username,
+                    'participants': list(self.room_participants[self.room_name])
+                }
+            )
+            print(f"VoiceRoom WebSocket: Sent user_joined event for {self.username}")
+            
+        except Exception as e:
+            print(f"VoiceRoom WebSocket: Error in connect: {e}")
+            await self.close()
 
     async def disconnect(self, close_code):
+        print(f"VoiceRoom WebSocket: {self.username} disconnecting from {self.room_name}, code: {close_code}")
+        
+        # Usuń z grupy
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
+        
+        # Usuń użytkownika z listy uczestników
+        if self.room_name in self.room_participants:
+            self.room_participants[self.room_name].discard(self.username)
+            
+            # Powiadom innych o opuszczeniu
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'user_left',
+                    'username': self.username,
+                    'participants': list(self.room_participants[self.room_name])
+                }
+            )
+            
+            # Usuń pokój jeśli pusty
+            if not self.room_participants[self.room_name]:
+                del self.room_participants[self.room_name]
 
     async def receive(self, text_data):
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'signal_message',
-                'message': text_data
-            }
-        )
+        try:
+            print(f"VoiceRoom WebSocket: Received data from {self.username}: {text_data[:100]}...")
+            
+            # Przekaż sygnał do wszystkich w pokoju
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'signal_message',
+                    'message': text_data,
+                    'sender': self.username
+                }
+            )
+        except Exception as e:
+            print(f"VoiceRoom WebSocket: Error in receive: {e}")
 
     async def signal_message(self, event):
-        await self.send(text_data=event['message'])
+        # Nie wysyłaj sygnału z powrotem do nadawcy
+        if event.get('sender') != self.username:
+            await self.send(text_data=event['message'])
+    
+    async def user_joined(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'user_joined',
+            'username': event['username'],
+            'participants': event['participants']
+        }))
+    
+    async def user_left(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'user_left',
+            'username': event['username'], 
+            'participants': event['participants']
+        }))
