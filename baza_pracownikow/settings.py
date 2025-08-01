@@ -189,48 +189,44 @@ ASGI_APPLICATION = 'baza_pracownikow.asgi.application'
 # Redis URL for Railway (will be set as environment variable)
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
 
-# TYMCZASOWO: użyj prostszego channel layer dla voice rooms
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        'CONFIG': {
-            'capacity': 100,  # Zmniejszone z domyślnego
-            'expiry': 5,      # Krótszy czas wygaśnięcia
+# Use Redis in production if available, InMemory for local development
+if 'REDIS_URL' in os.environ:
+    try:
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.layers.RedisChannelLayer',
+                'CONFIG': {
+                    "hosts": [REDIS_URL],
+                    "capacity": 300,  # Zmniejszone dla Railway
+                    "expiry": 60,     # Dłuższy czas dla WebRTC
+                },
+            }
+        }
+        print(f"Using Redis channel layer: {REDIS_URL}")
+    except Exception as e:
+        print(f"Redis connection failed: {e}")
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels.layers.InMemoryChannelLayer',
+                'CONFIG': {
+                    'capacity': 50,  # Bardzo małe dla Railway
+                    'expiry': 30,
+                }
+            }
+        }
+        print("Fallback to InMemory channel layer")
+else:
+    # Local development - InMemory
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            'CONFIG': {
+                'capacity': 100,
+                'expiry': 60,
+            }
         }
     }
-}
-print("Using InMemory channel layer with reduced settings for debugging")
-
-# Zakomentowane - przywróć gdy znajdziemy przyczynę problemu
-# # Use Redis in production if available, InMemory for local development
-# if 'REDIS_URL' in os.environ:
-#     try:
-#         CHANNEL_LAYERS = {
-#             'default': {
-#                 'BACKEND': 'channels_redis.layers.RedisChannelLayer',
-#                 'CONFIG': {
-#                     "hosts": [REDIS_URL],
-#                     "capacity": 1500,
-#                     "expiry": 10,
-#                 },
-#             }
-#         }
-#         print(f"Using Redis channel layer: {REDIS_URL}")
-#     except Exception as e:
-#         print(f"Redis connection failed: {e}")
-#         CHANNEL_LAYERS = {
-#             'default': {
-#                 'BACKEND': 'channels.layers.InMemoryChannelLayer'
-#             }
-#         }
-#         print("Fallback to InMemory channel layer")
-# else:
-#     CHANNEL_LAYERS = {
-#         'default': {
-#             'BACKEND': 'channels.layers.InMemoryChannelLayer'
-#         }
-#     }
-#     print("Using InMemory channel layer")
+    print("Using InMemory channel layer for local development")
 
 # Login/Logout settings
 LOGIN_URL = '/accounts/login/'

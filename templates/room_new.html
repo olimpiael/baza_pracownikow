@@ -23,6 +23,7 @@
         function manualReconnect() {
             debugLog('Manual reconnect triggered');
             reconnectAttempts = 0; // Reset attempts
+            failedAttempts = 0;    // Reset failed attempts
             document.getElementById('reconnectBtn').style.display = 'none';
             
             // Zatrzymaj poprzedni timeout
@@ -207,8 +208,10 @@
         let peers = {};
         let isCallActive = false;
         let reconnectAttempts = 0;
-        const maxReconnectAttempts = 10;
+        const maxReconnectAttempts = 5; // Zmniejszone dla Railway
         let reconnectTimeout;
+        let failedAttempts = 0;
+        const maxFailedAttempts = 3;
 
         // Debug logging
         function debugLog(message) {
@@ -263,7 +266,7 @@
                 // Reset reconnect attempts po udanym połączeniu
                 reconnectAttempts = 0;
                 
-                // Rozpocznij ping co 20 sekund (częściej dla Railway)
+                // Rozpocznij ping co 10 sekund (bardzo częsty dla Railway)
                 pingInterval = setInterval(() => {
                     if (ws.readyState === WebSocket.OPEN) {
                         ws.send(JSON.stringify({
@@ -272,7 +275,7 @@
                         }));
                         debugLog('Sent ping');
                     }
-                }, 20000);
+                }, 10000);
             };
 
             ws.onclose = function(e) {
@@ -290,8 +293,19 @@
                 
                 // Exponential backoff reconnect
                 if (reconnectAttempts < maxReconnectAttempts) {
-                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 15000); // Krótszy max delay
                     reconnectAttempts++;
+                    
+                    // Sprawdź czy to Railway problem (1006 wielokrotnie)
+                    if (e.code === 1006) {
+                        failedAttempts++;
+                        if (failedAttempts >= maxFailedAttempts) {
+                            debugLog('Railway WebSocket issues detected - showing manual reconnect');
+                            document.getElementById('status').innerHTML = '⚠️ Problem z Railway WebSocket - użyj przycisku poniżej';
+                            document.getElementById('reconnectBtn').style.display = 'inline-block';
+                            return;
+                        }
+                    }
                     
                     debugLog(`Attempting to reconnect in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
                     
@@ -300,7 +314,7 @@
                     }, delay);
                 } else {
                     debugLog('Max reconnect attempts reached');
-                    document.getElementById('status').innerHTML = '❌ Nie można połączyć z serwerem';
+                    document.getElementById('status').innerHTML = '❌ Railway WebSocket niestabilny - spróbuj manualnie';
                     document.getElementById('reconnectBtn').style.display = 'inline-block';
                 }
             };
