@@ -280,19 +280,36 @@ SOCIALACCOUNT_PROVIDERS = {
 
 SOCIALACCOUNT_LOGIN_ON_GET = True
 
-MEDIA_ROOT = BASE_DIR / 'media'
+# Media files configuration for Railway Volume
+if os.environ.get('RAILWAY_ENVIRONMENT'):
+    # Na Railway użyj Volume mount path
+    MEDIA_ROOT = '/app/media'  # Ścieżka gdzie Railway zamontuje Volume
+    
+    # Sprawdź czy Volume jest zamontowany
+    if os.path.exists('/app/media'):
+        print(f"Railway: Volume detected at {MEDIA_ROOT}")
+    else:
+        print(f"Railway: Volume not found, using temporary storage at {MEDIA_ROOT}")
+        
+    print(f"Railway: Using Volume media storage at {MEDIA_ROOT}")
+else:
+    # Local development
+    MEDIA_ROOT = BASE_DIR / 'media'
+    print(f"Local: Using local media storage at {MEDIA_ROOT}")
+
 MEDIA_URL = '/media/'
 
 # Ensure media directory exists
 import os
 try:
     os.makedirs(MEDIA_ROOT, exist_ok=True)
-    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'zdjecia', exist_ok=True)
-    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'cv', exist_ok=True)
-    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'umowy', exist_ok=True)
-    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'swiadectwa', exist_ok=True)
-    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'dyplomy', exist_ok=True)
-    os.makedirs(MEDIA_ROOT / 'dokumenty' / 'inne', exist_ok=True)
+    os.makedirs(os.path.join(MEDIA_ROOT, 'dokumenty', 'zdjecia'), exist_ok=True)
+    os.makedirs(os.path.join(MEDIA_ROOT, 'dokumenty', 'cv'), exist_ok=True)
+    os.makedirs(os.path.join(MEDIA_ROOT, 'dokumenty', 'umowy'), exist_ok=True)
+    os.makedirs(os.path.join(MEDIA_ROOT, 'dokumenty', 'swiadectwa'), exist_ok=True)
+    os.makedirs(os.path.join(MEDIA_ROOT, 'dokumenty', 'dyplomy'), exist_ok=True)
+    os.makedirs(os.path.join(MEDIA_ROOT, 'dokumenty', 'inne'), exist_ok=True)
+    print(f"Media directories created successfully in {MEDIA_ROOT}")
 except Exception as e:
     print(f"Warning: Could not create media directories: {e}")
 
