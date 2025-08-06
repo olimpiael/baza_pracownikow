@@ -1953,17 +1953,31 @@ import uuid
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-# Przechowywanie wiadomości głosowych w pamięci (dla Railway - zostanie zresetowane przy restarcie)
+# Przechowywanie wiadomości głosowych i aktywnych użytkowników w pamięci
 voice_rooms = {}
+active_users = {}  # {'room_name': {'user_id': last_seen_timestamp}}
 
 @login_required
 def voice_room_list(request):
     """Lista pokoi głosowych"""
+    # Sprawdź ile osób jest aktywnych w pokoju ogólnym
+    current_time = time.time()
+    active_count = 0
+    if 'general' in active_users:
+        # Usuń nieaktywnych użytkowników (nie widziani przez 30s)
+        active_users['general'] = {
+            user_id: last_seen for user_id, last_seen in active_users['general'].items()
+            if current_time - last_seen < 30
+        }
+        active_count = len(active_users['general'])
+    
     rooms = [
-        {'name': 'general', 'display_name': 'Pokój Ogólny', 'description': 'Rozmowy dla wszystkich'},
-        {'name': 'hr', 'display_name': 'HR', 'description': 'Zespół HR'},
-        {'name': 'it', 'display_name': 'IT', 'description': 'Zespół IT'},
-        {'name': 'management', 'display_name': 'Zarządzanie', 'description': 'Kadra zarządzająca'},
+        {
+            'name': 'general', 
+            'display_name': 'Pokój Ogólny', 
+            'description': f'Główny pokój rozmów dla wszystkich pracowników. Aktywnych: {active_count} osób',
+            'active_count': active_count
+        },
     ]
     return render(request, 'voice_room_list.html', {
         'rooms': rooms,
@@ -2030,6 +2044,11 @@ def get_voice_messages(request, room_name):
     timeout = 15  # Krótszy timeout dla real-time (15 sekund)
     start_time = time.time()
     
+    # Oznacz użytkownika jako aktywnego
+    if room_name not in active_users:
+        active_users[room_name] = {}
+    active_users[room_name][request.user.id] = time.time()
+    
     while time.time() - start_time < timeout:
         if room_name in voice_rooms:
             # Znajdź nowe wiadomości
@@ -2042,10 +2061,15 @@ def get_voice_messages(request, room_name):
                 print(f"[VOICE] Sending {len(new_messages)} real-time messages to {request.user.username}")
                 return JsonResponse({
                     'messages': new_messages,
-                    'room_name': room_name
+                    'room_name': room_name,
+                    'active_users': len(active_users.get(room_name, {}))
                 })
         
         time.sleep(0.5)  # Sprawdzaj co 500ms dla lepszego real-time
     
     # Timeout
-    return JsonResponse({'messages': [], 'room_name': room_name})
+    return JsonResponse({
+        'messages': [], 
+        'room_name': room_name,
+        'active_users': len(active_users.get(room_name, {}))
+    })

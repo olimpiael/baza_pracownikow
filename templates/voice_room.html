@@ -186,10 +186,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎤 {{ room_name|title }}</h1>
+            <h1>🎤 Pokój Ogólny</h1>
             <div class="room-info">
                 Użytkownik: <strong>{{ user.username }}</strong> | 
-                Pokój: <strong>{{ room_name }}</strong>
+                Aktywnych osób: <strong id="activeCount">0</strong>
             </div>
         </div>
         
@@ -226,7 +226,7 @@
         </div>
         
         <div class="back-link">
-            <a href="{% url 'voice_room_list' %}">← Powrót do listy pokoi</a>
+            <a href="{% url 'lista_pracownikow' %}">← Powrót do strony głównej</a>
         </div>
         
         <!-- Debug log -->
@@ -252,6 +252,7 @@
         const muteBtn = document.getElementById('muteBtn');
         const messagesDiv = document.getElementById('messages');
         const debugLog = document.getElementById('debugLog');
+        const activeCountSpan = document.getElementById('activeCount');
         
         function log(message) {
             const now = new Date().toLocaleTimeString();
@@ -486,6 +487,11 @@
                             lastTimestamp = Math.max(lastTimestamp, message.timestamp);
                         }
                         log(`Received ${data.messages.length} real-time messages`);
+                    }
+                    
+                    // Aktualizuj licznik aktywnych użytkowników
+                    if (data.active_users !== undefined) {
+                        activeCountSpan.textContent = data.active_users;
                     }
                     
                 } catch (error) {
