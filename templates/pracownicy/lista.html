@@ -644,8 +644,9 @@
         <!-- Przycisk systemu obecności -->
         <a href="{% url 'system_obecnosci' %}" class="action-button" style="background-color: #28a745; text-decoration: none; color: white;">🕐 System obecności</a>
         
-        <!-- Przycisk pokoi rozmów głosowych -->
-        <a href="{% url 'room_list' %}" class="action-button" style="background-color: #6f42c1; text-decoration: none; color: white;">🎤 Pokoje rozmów</a>
+        <!-- Przyciski pokoi rozmów głosowych -->
+        <a href="{% url 'room_list' %}" class="action-button" style="background-color: #6f42c1; text-decoration: none; color: white;">🎤 Pokoje rozmów (WebSocket)</a>
+        <a href="/voice/polling/general/" class="action-button" style="background-color: #28a745; text-decoration: none; color: white;">📡 Voice Chat (HTTP - Stabilne)</a>
     </div>
     
     <!-- Formularz dodawania pracownika -->
