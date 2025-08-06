@@ -2025,9 +2025,9 @@ def send_voice_message(request, room_name):
 
 @login_required
 def get_voice_messages(request, room_name):
-    """Pobierz wiadomości głosowe (long polling)"""
+    """Pobierz wiadomości głosowe (fast polling dla real-time)"""
     last_timestamp = float(request.GET.get('last_timestamp', 0))
-    timeout = 30  # 30 sekund
+    timeout = 15  # Krótszy timeout dla real-time (15 sekund)
     start_time = time.time()
     
     while time.time() - start_time < timeout:
@@ -2039,13 +2039,13 @@ def get_voice_messages(request, room_name):
             ]
             
             if new_messages:
-                print(f"[VOICE] Sending {len(new_messages)} new messages to {request.user.username}")
+                print(f"[VOICE] Sending {len(new_messages)} real-time messages to {request.user.username}")
                 return JsonResponse({
                     'messages': new_messages,
                     'room_name': room_name
                 })
         
-        time.sleep(1)  # Sprawdzaj co sekundę
+        time.sleep(0.5)  # Sprawdzaj co 500ms dla lepszego real-time
     
     # Timeout
     return JsonResponse({'messages': [], 'room_name': room_name})

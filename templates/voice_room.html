@@ -90,6 +90,19 @@
             cursor: not-allowed;
             transform: none;
         }
+        .recording-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #dc3545;
+            border-radius: 50%;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
         .messages {
             height: 300px;
             overflow-y: auto;
@@ -185,18 +198,22 @@
         </div>
         
         <div class="instructions">
-            <h4>📝 Instrukcje:</h4>
+            <h4>📝 Instrukcje - Real-time rozmowa:</h4>
             <ul>
-                <li>Kliknij "🎤 Naciśnij i mów" aby rozpocząć nagrywanie</li>
-                <li>Mów do mikrofonu</li>
-                <li>Kliknij ponownie aby zakończyć i wysłać</li>
-                <li>Inne osoby w pokoju usłyszą Twoją wiadomość automatycznie</li>
+                <li>Kliknij "🎤 Rozpocznij rozmowę" aby włączyć mikrofon</li>
+                <li>Mów normalnie - audio jest automatycznie przesyłane co 2-3 sekundy</li>
+                <li>Słuchaj innych użytkowników w czasie rzeczywistym</li>
+                <li>Kliknij "🔇 Wycisz mikrofon" aby przestać nadawać</li>
+                <li>Kliknij "🎤 Włącz mikrofon" aby ponownie rozpocząć nadawanie</li>
             </ul>
         </div>
         
         <div class="controls">
-            <button id="recordBtn" class="control-button record-btn">
-                🎤 Naciśnij i mów
+            <button id="toggleBtn" class="control-button record-btn">
+                🎤 Rozpocznij rozmowę
+            </button>
+            <button id="muteBtn" class="control-button" style="background: #dc3545; display: none;">
+                🔇 Wycisz mikrofon
             </button>
         </div>
         
@@ -222,13 +239,17 @@
         
         let mediaRecorder = null;
         let audioChunks = [];
-        let isRecording = false;
+        let isActive = false;  // Czy rozmowa jest aktywna
+        let isMuted = false;   // Czy mikrofon jest wyciszony
         let isPolling = false;
         let lastTimestamp = 0;
+        let recordingInterval = null;
+        let audioStream = null;
         
         // Elements
         const statusDiv = document.getElementById('status');
-        const recordBtn = document.getElementById('recordBtn');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const muteBtn = document.getElementById('muteBtn');
         const messagesDiv = document.getElementById('messages');
         const debugLog = document.getElementById('debugLog');
         
@@ -253,43 +274,36 @@
                 <div class="username">${username}</div>
                 <div class="time">${time}</div>
                 <div class="content">${content}</div>
-                ${audioData ? `<div class="audio-player"><audio controls><source src="data:audio/webm;base64,${audioData}" type="audio/webm"></audio></div>` : ''}
+                ${audioData ? `<div class="audio-player"><audio controls autoplay><source src="data:audio/webm;base64,${audioData}" type="audio/webm"></audio></div>` : ''}
             `;
             
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Auto-play incoming audio
+            if (audioData && !isOwn) {
+                setTimeout(() => {
+                    const audio = messageDiv.querySelector('audio');
+                    if (audio) {
+                        audio.play().catch(e => log(`Auto-play failed: ${e}`));
+                    }
+                }, 100);
+            }
         }
         
         // Initialize audio
         async function initAudio() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'audio/webm;codecs=opus'
-                });
-                
-                mediaRecorder.addEventListener('dataavailable', event => {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
+                audioStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
                     }
                 });
                 
-                mediaRecorder.addEventListener('stop', async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    audioChunks = [];
-                    
-                    // Convert to base64
-                    const reader = new FileReader();
-                    reader.onloadend = async () => {
-                        const base64Audio = reader.result.split(',')[1];
-                        await sendAudioMessage(base64Audio);
-                    };
-                    reader.readAsDataURL(audioBlob);
-                });
-                
-                updateStatus('🟢 Gotowy do nagrywania', 'ready');
-                recordBtn.disabled = false;
+                updateStatus('🟢 Gotowy do rozmowy', 'ready');
+                toggleBtn.disabled = false;
                 log('Audio initialized successfully');
                 
                 // Start polling for messages
@@ -301,31 +315,127 @@
             }
         }
         
-        // Record button handler
-        recordBtn.addEventListener('click', () => {
-            if (!isRecording) {
-                // Start recording
-                audioChunks = [];
-                mediaRecorder.start();
-                isRecording = true;
-                
-                recordBtn.textContent = '🔴 Nagrywanie... (kliknij aby zakończyć)';
-                updateStatus('🔴 Nagrywanie w toku...', 'recording');
-                log('Started recording');
-                
-            } else {
-                // Stop recording
+        // Start real-time conversation
+        function startConversation() {
+            if (!audioStream || isActive) return;
+            
+            isActive = true;
+            isMuted = false;
+            
+            toggleBtn.style.display = 'none';
+            muteBtn.style.display = 'inline-flex';
+            
+            updateStatus('🔴 Rozmowa aktywna - mów normalnie', 'recording');
+            log('Started real-time conversation');
+            
+            startContinuousRecording();
+        }
+        
+        // Stop conversation
+        function stopConversation() {
+            isActive = false;
+            
+            if (recordingInterval) {
+                clearInterval(recordingInterval);
+                recordingInterval = null;
+            }
+            
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
-                isRecording = false;
+            }
+            
+            toggleBtn.style.display = 'inline-flex';
+            muteBtn.style.display = 'none';
+            
+            updateStatus('🟢 Rozmowa zakończona', 'ready');
+            log('Stopped conversation');
+        }
+        
+        // Toggle mute
+        function toggleMute() {
+            isMuted = !isMuted;
+            
+            if (isMuted) {
+                muteBtn.textContent = '🎤 Włącz mikrofon';
+                muteBtn.style.background = '#28a745';
+                updateStatus('🔇 Mikrofon wyciszony', 'ready');
+                log('Microphone muted');
+            } else {
+                muteBtn.textContent = '🔇 Wycisz mikrofon';
+                muteBtn.style.background = '#dc3545';
+                updateStatus('🔴 Rozmowa aktywna - mów normalnie', 'recording');
+                log('Microphone unmuted');
+            }
+        }
+        
+        // Continuous recording in chunks
+        function startContinuousRecording() {
+            const recordChunk = () => {
+                if (!isActive || isMuted) return;
                 
-                recordBtn.textContent = '🎤 Naciśnij i mów';
-                updateStatus('📤 Wysyłanie wiadomości...', 'ready');
-                log('Stopped recording');
+                try {
+                    mediaRecorder = new MediaRecorder(audioStream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+                    
+                    audioChunks = [];
+                    
+                    mediaRecorder.addEventListener('dataavailable', event => {
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    });
+                    
+                    mediaRecorder.addEventListener('stop', async () => {
+                        if (audioChunks.length > 0 && !isMuted) {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            
+                            // Only send if blob is large enough (has audio content)
+                            if (audioBlob.size > 1000) {  // At least 1KB
+                                const reader = new FileReader();
+                                reader.onloadend = async () => {
+                                    const base64Audio = reader.result.split(',')[1];
+                                    await sendAudioMessage(base64Audio, false); // Don't show in UI for real-time
+                                };
+                                reader.readAsDataURL(audioBlob);
+                            }
+                        }
+                    });
+                    
+                    mediaRecorder.start();
+                    
+                    // Stop recording after 2.5 seconds
+                    setTimeout(() => {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
+                        }
+                    }, 2500);
+                    
+                } catch (error) {
+                    log(`Recording error: ${error}`);
+                }
+            };
+            
+            // Start first chunk immediately
+            recordChunk();
+            
+            // Continue recording every 3 seconds
+            recordingInterval = setInterval(recordChunk, 3000);
+        }
+        
+        // Button handlers
+        toggleBtn.addEventListener('click', () => {
+            if (!isActive) {
+                startConversation();
+            } else {
+                stopConversation();
             }
         });
         
+        muteBtn.addEventListener('click', toggleMute);
+        
         // Send audio message
-        async function sendAudioMessage(audioData) {
+        async function sendAudioMessage(audioData, showInUI = true) {
             try {
                 const response = await fetch(`/voice/${roomName}/send/`, {
                     method: 'POST',
@@ -341,24 +451,24 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    addMessage(username, '🎵 Wiadomość głosowa wysłana', true, audioData);
-                    updateStatus('✅ Wiadomość wysłana', 'ready');
-                    log(`Message sent: ${data.message_id}`);
+                    if (showInUI) {
+                        addMessage(username, '🎵 Wiadomość głosowa wysłana', true, audioData);
+                    }
+                    log(`Real-time chunk sent: ${data.message_id}`);
                 } else {
                     throw new Error(data.error || 'Unknown error');
                 }
                 
             } catch (error) {
-                log(`Error sending message: ${error}`);
-                updateStatus('❌ Błąd wysyłania', 'error');
+                log(`Error sending real-time chunk: ${error}`);
             }
         }
         
-        // Start polling for new messages
+        // Start polling for new messages (faster for real-time)
         async function startPolling() {
             if (isPolling) return;
             isPolling = true;
-            log('Started polling for messages');
+            log('Started real-time polling for messages');
             
             while (isPolling) {
                 try {
@@ -369,21 +479,21 @@
                         for (const message of data.messages) {
                             addMessage(
                                 message.username,
-                                '🎵 Wiadomość głosowa',
+                                '🎵 ' + new Date(message.timestamp * 1000).toLocaleTimeString(),
                                 false,
                                 message.audio_data
                             );
                             lastTimestamp = Math.max(lastTimestamp, message.timestamp);
                         }
-                        log(`Received ${data.messages.length} new messages`);
+                        log(`Received ${data.messages.length} real-time messages`);
                     }
                     
                 } catch (error) {
                     log(`Polling error: ${error}`);
-                    await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s on error
+                    await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3s on error
                 }
                 
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2s
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Poll every 1 second for real-time
             }
         }
         
@@ -405,8 +515,8 @@
         
         // Initialize on page load
         window.addEventListener('load', () => {
-            log(`Voice room ${roomName} initialized for user ${username}`);
-            recordBtn.disabled = true;
+            log(`Real-time voice room ${roomName} initialized for user ${username}`);
+            toggleBtn.disabled = true;
             updateStatus('🔄 Inicjalizacja mikrofonu...', 'ready');
             initAudio();
         });
@@ -414,8 +524,9 @@
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
             isPolling = false;
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
+            stopConversation();
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
             }
         });
     </script>
