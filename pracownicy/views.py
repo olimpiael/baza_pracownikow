@@ -1946,34 +1946,106 @@ def room_detail(request, room_name):
         'user': request.user
     })
 
-# ===== VOICE CHAT ALTERNATYWY =====
+# ===== PROSTY VOICE CHAT =====
+import json
+import time
+import uuid
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+# Przechowywanie wiadomości głosowych w pamięci (dla Railway - zostanie zresetowane przy restarcie)
+voice_rooms = {}
+
 @login_required
-def voice_methods(request):
-    """Wybór metody voice chat"""
-    return render(request, 'voice_methods.html', {
+def voice_room_list(request):
+    """Lista pokoi głosowych"""
+    rooms = [
+        {'name': 'general', 'display_name': 'Pokój Ogólny', 'description': 'Rozmowy dla wszystkich'},
+        {'name': 'hr', 'display_name': 'HR', 'description': 'Zespół HR'},
+        {'name': 'it', 'display_name': 'IT', 'description': 'Zespół IT'},
+        {'name': 'management', 'display_name': 'Zarządzanie', 'description': 'Kadra zarządzająca'},
+    ]
+    return render(request, 'voice_room_list.html', {
+        'rooms': rooms,
         'user': request.user
     })
 
-@login_required 
-def voice_polling_room(request, room_name):
-    """Voice chat przez HTTP Long Polling"""
-    return render(request, 'voice_polling.html', {
+@login_required
+def voice_room(request, room_name):
+    """Pokój głosowy"""
+    return render(request, 'voice_room.html', {
         'room_name': room_name,
         'user': request.user
     })
 
+@csrf_exempt
 @login_required
-def voice_sse_room(request, room_name):
-    """Voice chat przez Server-Sent Events"""
-    return render(request, 'voice_sse.html', {
-        'room_name': room_name,
-        'user': request.user
-    })
+def send_voice_message(request, room_name):
+    """Wyślij wiadomość głosową"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        audio_data = data.get('audio_data')  # base64
+        
+        if not audio_data:
+            return JsonResponse({'error': 'No audio data'}, status=400)
+        
+        # Utwórz pokój jeśli nie istnieje
+        if room_name not in voice_rooms:
+            voice_rooms[room_name] = []
+        
+        # Dodaj wiadomość
+        message = {
+            'id': str(uuid.uuid4()),
+            'user_id': request.user.id,
+            'username': request.user.username,
+            'audio_data': audio_data,
+            'timestamp': time.time()
+        }
+        
+        voice_rooms[room_name].append(message)
+        
+        # Ogranicz do 50 wiadomości
+        if len(voice_rooms[room_name]) > 50:
+            voice_rooms[room_name] = voice_rooms[room_name][-50:]
+        
+        print(f"[VOICE] User {request.user.username} sent message to {room_name}")
+        
+        return JsonResponse({
+            'success': True,
+            'message_id': message['id'],
+            'total_messages': len(voice_rooms[room_name])
+        })
+        
+    except Exception as e:
+        print(f"[VOICE] Error sending message: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
-def voice_socketio_room(request, room_name):
-    """Voice chat przez Socket.IO"""
-    return render(request, 'voice_socketio.html', {
-        'room_name': room_name,
-        'user': request.user
-    })
+def get_voice_messages(request, room_name):
+    """Pobierz wiadomości głosowe (long polling)"""
+    last_timestamp = float(request.GET.get('last_timestamp', 0))
+    timeout = 30  # 30 sekund
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        if room_name in voice_rooms:
+            # Znajdź nowe wiadomości
+            new_messages = [
+                msg for msg in voice_rooms[room_name] 
+                if msg['timestamp'] > last_timestamp and msg['user_id'] != request.user.id
+            ]
+            
+            if new_messages:
+                print(f"[VOICE] Sending {len(new_messages)} new messages to {request.user.username}")
+                return JsonResponse({
+                    'messages': new_messages,
+                    'room_name': room_name
+                })
+        
+        time.sleep(1)  # Sprawdzaj co sekundę
+    
+    # Timeout
+    return JsonResponse({'messages': [], 'room_name': room_name})

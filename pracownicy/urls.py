@@ -2,7 +2,6 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
 from .views_set_password import set_password_after_social
-from . import voice_views, voice_sse
 
 urlpatterns = [
     path('', views.lista_pracownikow, name='lista_pracownikow'),
@@ -28,26 +27,9 @@ urlpatterns = [
     path('obecnosc/statusy/', views.zarzadzaj_statusy, name='zarzadzaj_statusy'),
     path('obecnosc/ustaw-urlop/', views.ustaw_urlop, name='ustaw_urlop'),
     
-    # ===== VOICE CHAT ALTERNATYWY =====
-    # Strona wyboru metody
-    path('voice/', views.voice_methods, name='voice_methods'),
-    
-    # Opcja 1: HTTP Long Polling
-    path('voice/polling/send/', voice_views.send_voice_chunk, name='send_voice_chunk'),
-    path('voice/polling/get/<str:room_id>/', voice_views.get_voice_messages, name='get_voice_messages'),
-    path('voice/polling/join/<str:room_id>/', voice_views.join_voice_room, name='join_voice_room_polling'),
-    path('voice/polling/leave/<str:room_id>/', voice_views.leave_voice_room, name='leave_voice_room_polling'),
-    path('voice/polling/<str:room_name>/', views.voice_polling_room, name='voice_polling_room'),
-    
-    # Opcja 2: Server-Sent Events
-    path('voice/sse/stream/<str:room_id>/', voice_sse.voice_room_stream, name='voice_room_stream'),
-    path('voice/sse/send/', voice_sse.send_voice_sse, name='send_voice_sse'),
-    path('voice/sse/<str:room_name>/', views.voice_sse_room, name='voice_sse_room'),
-    
-    # Opcja 3: Socket.IO
-    path('voice/socketio/<str:room_name>/', views.voice_socketio_room, name='voice_socketio_room'),
-    
-    # Pokoje rozmów głosowych (stare WebSocket)
-    path('room/', views.room_list, name='room_list'),
-    path('room/<str:room_name>/', views.room_detail, name='room_detail'),
+    # === PROSTY VOICE CHAT ===
+    path('voice/', views.voice_room_list, name='voice_room_list'),
+    path('voice/<str:room_name>/', views.voice_room, name='voice_room'),
+    path('voice/<str:room_name>/send/', views.send_voice_message, name='send_voice_message'),
+    path('voice/<str:room_name>/messages/', views.get_voice_messages, name='get_voice_messages'),
 ]
