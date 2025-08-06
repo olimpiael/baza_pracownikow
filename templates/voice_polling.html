@@ -152,23 +152,37 @@
             
             while (pollingActive && isConnected) {
                 try {
-                    const url = `/voice/polling/get/${roomId}/${lastMessageId ? '?last_message_id=' + lastMessageId : ''}`;
+                    let url = `/voice/polling/get/${roomId}/`;
+                    if (lastMessageId) {
+                        url += `?last_message_id=${lastMessageId}`;
+                    }
+                    console.log('Polling URL:', url); // Debug
                     const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
+                    console.log('Polling response:', data);
                     
                     if (data.participants !== undefined) {
                         participantCountSpan.textContent = data.participants;
                     }
                     
                     if (data.messages && data.messages.length > 0) {
+                        console.log(`Received ${data.messages.length} messages:`, data.messages);
                         for (const message of data.messages) {
                             if (message.type === 'audio') {
                                 addMessage(`🎵 ${message.username} wysłał audio`, false);
                                 playAudio(message.audio_chunk);
                                 lastMessageId = message.id;
+                                log(`Processed audio message from ${message.username}, id: ${message.id}`);
                             }
                         }
-                        log(`Received ${data.messages.length} messages`);
+                        log(`Received ${data.messages.length} messages, last ID: ${lastMessageId}`);
+                    } else {
+                        console.log('No new messages received');
                     }
                     
                 } catch (error) {

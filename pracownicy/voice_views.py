@@ -26,7 +26,10 @@ def send_voice_chunk(request):
         audio_chunk = data.get('audio_chunk')  # base64 encoded
         user_id = str(request.user.id)
         
+        print(f"[SEND] User {user_id} sending to room {room_id}")
+        
         if not room_id or not audio_chunk:
+            print(f"[SEND] Missing data: room_id={room_id}, audio_chunk={'present' if audio_chunk else 'missing'}")
             return JsonResponse({'error': 'Missing room_id or audio_chunk'}, status=400)
         
         # Create room if doesn't exist
@@ -35,6 +38,7 @@ def send_voice_chunk(request):
                 'messages': [],
                 'participants': set()
             }
+            print(f"[SEND] Created new room {room_id}")
         
         # Add participant
         voice_rooms[room_id]['participants'].add(user_id)
@@ -50,6 +54,7 @@ def send_voice_chunk(request):
         }
         
         voice_rooms[room_id]['messages'].append(message)
+        print(f"[SEND] Added message {message['id']} to room {room_id}. Total messages: {len(voice_rooms[room_id]['messages'])}")
         
         # Keep only last 50 messages per room
         if len(voice_rooms[room_id]['messages']) > 50:
@@ -62,6 +67,7 @@ def send_voice_chunk(request):
         })
         
     except Exception as e:
+        print(f"[SEND] Error: {e}")
         return JsonResponse({'error': str(e)}, status=500)
 
 @require_http_methods(["GET"])
@@ -75,6 +81,8 @@ def get_voice_messages(request, room_id):
     timeout = 30  # 30 sekund timeout
     start_time = time.time()
     
+    print(f"[POLLING] User {user_id} polling room {room_id}, last_message_id: {last_message_id}")
+    
     # Add user to room participants
     if room_id not in voice_rooms:
         voice_rooms[room_id] = {
@@ -83,10 +91,12 @@ def get_voice_messages(request, room_id):
         }
     
     voice_rooms[room_id]['participants'].add(user_id)
+    print(f"[POLLING] Room {room_id} participants: {len(voice_rooms[room_id]['participants'])}")
     
     while time.time() - start_time < timeout:
         # Get messages after last_message_id
         messages = voice_rooms.get(room_id, {}).get('messages', [])
+        print(f"[POLLING] Total messages in room: {len(messages)}")
         
         if last_message_id:
             # Find messages after last_message_id
@@ -97,11 +107,14 @@ def get_voice_messages(request, room_id):
                     new_messages.append(msg)
                 elif msg['id'] == last_message_id:
                     found_last = True
+            print(f"[POLLING] Found {len(new_messages)} new messages after {last_message_id}")
         else:
             # First request - send recent messages from others
             new_messages = [msg for msg in messages[-10:] if msg['user_id'] != user_id]
+            print(f"[POLLING] First request: {len(new_messages)} recent messages from others")
         
         if new_messages:
+            print(f"[POLLING] Returning {len(new_messages)} messages to user {user_id}")
             return JsonResponse({
                 'messages': new_messages,
                 'participants': len(voice_rooms[room_id]['participants'])
@@ -110,6 +123,7 @@ def get_voice_messages(request, room_id):
         time.sleep(0.5)  # Check every 500ms
     
     # Timeout - return empty
+    print(f"[POLLING] Timeout for user {user_id} in room {room_id}")
     return JsonResponse({
         'messages': [],
         'participants': len(voice_rooms.get(room_id, {}).get('participants', []))
