@@ -1940,8 +1940,40 @@ def room_list(request):
 
 @login_required
 def room_detail(request, room_name):
-    """Szczegóły pokoju rozmów"""
+    """Szczegóły pokoju rozmów (stary WebSocket)"""
     return render(request, 'room.html', {
+        'room_name': room_name,
+        'user': request.user
+    })
+
+# ===== VOICE CHAT ALTERNATYWY =====
+@login_required
+def voice_methods(request):
+    """Wybór metody voice chat"""
+    return render(request, 'voice_methods.html', {
+        'user': request.user
+    })
+
+@login_required 
+def voice_polling_room(request, room_name):
+    """Voice chat przez HTTP Long Polling"""
+    return render(request, 'voice_polling.html', {
+        'room_name': room_name,
+        'user': request.user
+    })
+
+@login_required
+def voice_sse_room(request, room_name):
+    """Voice chat przez Server-Sent Events"""
+    return render(request, 'voice_sse.html', {
+        'room_name': room_name,
+        'user': request.user
+    })
+
+@login_required
+def voice_socketio_room(request, room_name):
+    """Voice chat przez Socket.IO"""
+    return render(request, 'voice_socketio.html', {
         'room_name': room_name,
         'user': request.user
     })

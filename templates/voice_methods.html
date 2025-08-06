@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Chat - Wybór Metody</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .method { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: #f8f9fa; }
+        .method h3 { color: #333; margin-top: 0; }
+        .method .pros { color: #28a745; margin: 10px 0; }
+        .method .cons { color: #dc3545; margin: 10px 0; }
+        .method .tech { color: #6c757d; font-size: 14px; margin: 10px 0; }
+        .method button { width: 100%; padding: 12px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-info { background: #17a2b8; color: white; }
+        .recommendation { background: #d1ecf1; padding: 15px; border-radius: 4px; margin: 20px 0; border-left: 4px solid #bee5eb; }
+        .rooms { margin-top: 20px; }
+        .room-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+        .room-btn { padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer; text-align: center; }
+        .room-btn:hover { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 Voice Chat - Wybór Metody Komunikacji</h1>
+            <p>Wybierz metodę komunikacji głosowej, która najlepiej działa na Railway</p>
+        </div>
+        
+        <div class="recommendation">
+            <h4>💡 Rekomendacja dla Railway:</h4>
+            <p><strong>HTTP Long Polling</strong> - najbardziej stabilne rozwiązanie dla infrastruktury Railway. 
+            WebSockety mają problemy z proxy/load balancer timeoutami.</p>
+        </div>
+        
+        <div class="methods">
+            <!-- HTTP Long Polling -->
+            <div class="method">
+                <h3>📡 HTTP Long Polling</h3>
+                <div class="tech">
+                    <strong>Technologia:</strong> HTTP requests + MediaRecorder API<br>
+                    <strong>Kompatybilność:</strong> ✅ Railway friendly
+                </div>
+                <div class="pros">
+                    <strong>Zalety:</strong><br>
+                    ✅ Stabilne na Railway<br>
+                    ✅ Nie wymaga WebSocket<br>
+                    ✅ Automatyczne reconnect<br>
+                    ✅ Brak problemów z proxy
+                </div>
+                <div class="cons">
+                    <strong>Wady:</strong><br>
+                    ❌ Więcej requestów HTTP<br>
+                    ❌ Lekkie opóźnienie
+                </div>
+                <button class="btn-success" onclick="selectMethod('polling')">
+                    🎯 Użyj Long Polling (Zalecane)
+                </button>
+            </div>
+            
+            <!-- Server-Sent Events -->
+            <div class="method">
+                <h3>📺 Server-Sent Events</h3>
+                <div class="tech">
+                    <strong>Technologia:</strong> SSE + AJAX<br>
+                    <strong>Kompatybilność:</strong> ⚠️ Może mieć problemy na Railway
+                </div>
+                <div class="pros">
+                    <strong>Zalety:</strong><br>
+                    ✅ Jednokierunkowy stream<br>
+                    ✅ Automatyczne reconnect<br>
+                    ✅ Mniej zasobożerne niż WebSocket
+                </div>
+                <div class="cons">
+                    <strong>Wady:</strong><br>
+                    ❌ Może mieć timeout na Railway<br>
+                    ❌ Ograniczenia przeglądarek
+                </div>
+                <button class="btn-warning" onclick="selectMethod('sse')">
+                    📡 Użyj SSE (Eksperymentalne)
+                </button>
+            </div>
+            
+            <!-- Socket.IO -->
+            <div class="method">
+                <h3>🔌 Socket.IO</h3>
+                <div class="tech">
+                    <strong>Technologia:</strong> Socket.IO (WebSocket + fallback)<br>
+                    <strong>Kompatybilność:</strong> ⚠️ Wymaga dodatkowej konfiguracji
+                </div>
+                <div class="pros">
+                    <strong>Zalety:</strong><br>
+                    ✅ Fallback do polling<br>
+                    ✅ Najbardziej funkcjonalne<br>
+                    ✅ Real-time komunikacja
+                </div>
+                <div class="cons">
+                    <strong>Wady:</strong><br>
+                    ❌ Wymaga instalacji pakietów<br>
+                    ❌ Skomplikowana konfiguracja ASGI
+                </div>
+                <button class="btn-info" onclick="selectMethod('socketio')">
+                    🔌 Użyj Socket.IO (Zaawansowane)
+                </button>
+            </div>
+            
+            <!-- WebSocket (stary) -->
+            <div class="method">
+                <h3>🔗 WebSocket (Django Channels)</h3>
+                <div class="tech">
+                    <strong>Technologia:</strong> Django Channels WebSocket<br>
+                    <strong>Kompatybilność:</strong> ❌ Problemy na Railway
+                </div>
+                <div class="pros">
+                    <strong>Zalety:</strong><br>
+                    ✅ Natywny Django<br>
+                    ✅ Real-time komunikacja
+                </div>
+                <div class="cons">
+                    <strong>Wady:</strong><br>
+                    ❌ Timeout po 30-60s na Railway<br>
+                    ❌ Error 1006 (Abnormal Closure)<br>
+                    ❌ Problemy z proxy/load balancer
+                </div>
+                <button class="btn-primary" onclick="selectMethod('websocket')">
+                    🔗 Użyj WebSocket (Aktualny - z problemami)
+                </button>
+            </div>
+        </div>
+        
+        <div class="rooms" id="roomSelection" style="display:none;">
+            <h3>Wybierz pokój:</h3>
+            <div class="room-list">
+                <div class="room-btn" onclick="joinRoom('general')">🌍 Pokój Ogólny</div>
+                <div class="room-btn" onclick="joinRoom('hr')">👥 HR</div>
+                <div class="room-btn" onclick="joinRoom('it')">💻 IT</div>
+                <div class="room-btn" onclick="joinRoom('management')">📊 Zarządzanie</div>
+                <div class="room-btn" onclick="joinRoom('test')">🧪 Test</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedMethod = null;
+        
+        function selectMethod(method) {
+            selectedMethod = method;
+            document.getElementById('roomSelection').style.display = 'block';
+            
+            // Highlight selected method
+            document.querySelectorAll('.method').forEach(m => {
+                m.style.border = '1px solid #ddd';
+                m.style.background = '#f8f9fa';
+            });
+            
+            event.target.closest('.method').style.border = '2px solid #007bff';
+            event.target.closest('.method').style.background = '#e3f2fd';
+            
+            console.log(`Selected method: ${method}`);
+        }
+        
+        function joinRoom(roomName) {
+            if (!selectedMethod) {
+                alert('Najpierw wybierz metodę komunikacji!');
+                return;
+            }
+            
+            let url;
+            switch(selectedMethod) {
+                case 'polling':
+                    url = `/voice/polling/${roomName}/`;
+                    break;
+                case 'sse':
+                    url = `/voice/sse/${roomName}/`;
+                    break;
+                case 'socketio':
+                    url = `/voice/socketio/${roomName}/`;
+                    break;
+                case 'websocket':
+                    url = `/room_new/${roomName}/`;
+                    break;
+                default:
+                    alert('Nieznana metoda!');
+                    return;
+            }
+            
+            console.log(`Joining room ${roomName} with method ${selectedMethod}`);
+            console.log(`URL: ${url}`);
+            window.location.href = url;
+        }
+        
+        // Auto-select recommended method
+        window.addEventListener('load', () => {
+            console.log('Voice Chat Method Selection loaded');
+        });
+    </script>
+</body>
+</html>

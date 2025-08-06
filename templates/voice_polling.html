@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Chat - HTTP Long Polling</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .controls { text-align: center; margin: 20px 0; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .messages { height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #f8f9fa; }
+        .message { margin: 5px 0; padding: 5px; background: white; border-radius: 4px; }
+        .message.own { background: #e3f2fd; }
+        .logs { height: 150px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin: 10px 0; background: #f8f9fa; font-family: monospace; font-size: 12px; }
+        .room-info { text-align: center; margin: 10px 0; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 Voice Chat - HTTP Long Polling</h1>
+            <div class="room-info">Pokój: <span id="roomId">{{ room_name }}</span> | Uczestnicy: <span id="participantCount">0</span></div>
+        </div>
+        
+        <div id="status" class="status disconnected">Niepołączony</div>
+        
+        <div class="controls">
+            <button id="joinBtn" class="btn-primary">Dołącz do pokoju</button>
+            <button id="leaveBtn" class="btn-secondary" disabled>Opuść pokój</button>
+            <button id="recordBtn" class="btn-success" disabled>🎤 Nagraj</button>
+            <button id="stopBtn" class="btn-danger" disabled>⏹️ Stop</button>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="message">Witaj w pokoju głosowym używającym HTTP Long Polling!</div>
+        </div>
+        
+        <div class="logs" id="logs"></div>
+    </div>
+
+    <script>
+        const roomId = '{{ room_name }}';
+        const username = '{{ user.username|default:"Anonymous" }}';
+        let isConnected = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let pollingActive = false;
+        let lastMessageId = null;
+        
+        // UI elements
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const logsDiv = document.getElementById('logs');
+        const joinBtn = document.getElementById('joinBtn');
+        const leaveBtn = document.getElementById('leaveBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const participantCountSpan = document.getElementById('participantCount');
+        
+        function log(message) {
+            const now = new Date().toLocaleTimeString();
+            logsDiv.innerHTML += `[${now}] ${message}<br>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(`[Polling] ${message}`);
+        }
+        
+        function updateStatus(message, isConnected) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${isConnected ? 'connected' : 'disconnected'}`;
+        }
+        
+        function addMessage(message, isOwn = false) {
+            const div = document.createElement('div');
+            div.className = `message ${isOwn ? 'own' : ''}`;
+            div.innerHTML = message;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Join room
+        joinBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(`/voice/polling/join/${roomId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'joined') {
+                    isConnected = true;
+                    updateStatus('Połączony', true);
+                    joinBtn.disabled = true;
+                    leaveBtn.disabled = false;
+                    recordBtn.disabled = false;
+                    participantCountSpan.textContent = data.participants;
+                    
+                    addMessage(`✅ Dołączyłeś do pokoju ${roomId}`, true);
+                    log(`Joined room ${roomId}`);
+                    
+                    startPolling();
+                    await setupAudio();
+                }
+            } catch (error) {
+                log(`Error joining room: ${error}`);
+            }
+        });
+        
+        // Leave room
+        leaveBtn.addEventListener('click', async () => {
+            try {
+                await fetch(`/voice/polling/leave/${roomId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                stopPolling();
+                isConnected = false;
+                updateStatus('Niepołączony', false);
+                joinBtn.disabled = false;
+                leaveBtn.disabled = true;
+                recordBtn.disabled = true;
+                stopBtn.disabled = true;
+                
+                addMessage(`❌ Opuściłeś pokój`, true);
+                log(`Left room ${roomId}`);
+            } catch (error) {
+                log(`Error leaving room: ${error}`);
+            }
+        });
+        
+        // Long polling
+        async function startPolling() {
+            pollingActive = true;
+            log('Starting long polling...');
+            
+            while (pollingActive && isConnected) {
+                try {
+                    const url = `/voice/polling/get/${roomId}/${lastMessageId ? '?last_message_id=' + lastMessageId : ''}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.participants !== undefined) {
+                        participantCountSpan.textContent = data.participants;
+                    }
+                    
+                    if (data.messages && data.messages.length > 0) {
+                        for (const message of data.messages) {
+                            if (message.type === 'audio') {
+                                addMessage(`🎵 ${message.username} wysłał audio`, false);
+                                playAudio(message.audio_chunk);
+                                lastMessageId = message.id;
+                            }
+                        }
+                        log(`Received ${data.messages.length} messages`);
+                    }
+                    
+                } catch (error) {
+                    log(`Polling error: ${error}`);
+                    if (pollingActive) {
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }
+                }
+            }
+        }
+        
+        function stopPolling() {
+            pollingActive = false;
+            log('Stopped polling');
+        }
+        
+        // Audio setup
+        async function setupAudio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                });
+                
+                mediaRecorder.addEventListener('stop', async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+                    
+                    // Convert to base64
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                        const base64Audio = reader.result.split(',')[1];
+                        await sendAudio(base64Audio);
+                    };
+                    reader.readAsDataURL(audioBlob);
+                });
+                
+                log('Audio setup complete');
+            } catch (error) {
+                log(`Audio setup error: ${error}`);
+            }
+        }
+        
+        // Recording controls
+        recordBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                audioChunks = [];
+                mediaRecorder.start();
+                recordBtn.disabled = true;
+                stopBtn.disabled = false;
+                addMessage('🎤 Nagrywanie...', true);
+                log('Started recording');
+            }
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                recordBtn.disabled = false;
+                stopBtn.disabled = true;
+                addMessage('⏹️ Nagrywanie zakończone', true);
+                log('Stopped recording');
+            }
+        });
+        
+        // Send audio
+        async function sendAudio(base64Audio) {
+            try {
+                const response = await fetch('/voice/polling/send/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        room_id: roomId,
+                        audio_chunk: base64Audio
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    addMessage('📤 Audio wysłane', true);
+                    log(`Audio sent: ${data.message_id}`);
+                } else {
+                    log(`Send error: ${data.error}`);
+                }
+            } catch (error) {
+                log(`Send audio error: ${error}`);
+            }
+        }
+        
+        // Play audio
+        function playAudio(base64Audio) {
+            try {
+                const audioBlob = new Blob([Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0))], {
+                    type: 'audio/webm'
+                });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                audio.play().catch(e => log(`Audio play error: ${e}`));
+            } catch (error) {
+                log(`Play audio error: ${error}`);
+            }
+        }
+        
+        // CSRF token helper
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (isConnected) {
+                navigator.sendBeacon(`/voice/polling/leave/${roomId}/`);
+            }
+        });
+        
+        log('HTTP Long Polling Voice Chat initialized');
+    </script>
+</body>
+</html>

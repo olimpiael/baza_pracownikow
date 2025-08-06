@@ -18,6 +18,8 @@ django-filter==25.1
 djangorestframework==3.16.0
 hyperlink==21.0.0
 idna==3.10
+python-socketio==5.11.4
+python-engineio==4.10.1
 incremental==24.7.2
 oauthlib==3.3.1
 paho-mqtt==2.1.0
