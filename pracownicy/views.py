@@ -1946,7 +1946,6 @@ def room_detail(request, room_name):
         'user': request.user
     })
 
-# ===== PROSTY VOICE CHAT =====
 import json
 import time
 import uuid
@@ -1959,7 +1958,6 @@ active_users = {}  # {'room_name': {'user_id': last_seen_timestamp}}
 
 @login_required
 def voice_room_list(request):
-    """Lista pokoi głosowych"""
     # Sprawdź ile osób jest aktywnych w pokoju ogólnym
     current_time = time.time()
     active_count = 0
