@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pracownik, Zespol, ChatMessage, Rola, Stanowisko
+from .models import Pracownik, Zespol, ChatMessage, Rola, Stanowisko, Zadanie, OcenaPracownika
 
 # Register your models here.
 # Usunięto PracownikInline bo zespoły są teraz CharField choices
@@ -229,5 +229,18 @@ class StanowiskoAdmin(admin.ModelAdmin):
     list_display = ['nazwa', 'kod', 'opis']
     search_fields = ['nazwa', 'kod', 'opis']
     ordering = ['nazwa']
+
+
+@admin.register(OcenaPracownika)
+class OcenaPracownikaAdmin(admin.ModelAdmin):
+    list_display = ('oceniajacy', 'oceniany', 'kategoria', 'ocena', 'data_utworzenia', 'anonimowa')
+    list_filter = ('data_utworzenia', 'anonimowa', 'kategoria', 'ocena', 'oceniajacy__zespol')
+    search_fields = ('oceniajacy__imie', 'oceniajacy__nazwisko', 'oceniany__imie', 'oceniany__nazwisko')
+    date_hierarchy = 'data_utworzenia'
+    
+    def get_stars(self, obj):
+        """Wyświetl ocenę jako gwiazdki"""
+        return obj.get_stars()
+    get_stars.short_description = 'Gwiazdki'
 
 

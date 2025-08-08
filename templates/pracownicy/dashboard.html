@@ -219,6 +219,8 @@
         {% endif %}
         <div class="navigation">
             <a href="{% url 'lista_pracownikow' %}" class="nav-link">← Powrót do listy pracowników</a>
+            | <a href="{% url 'oceny_pracownikow' %}" class="nav-link">⭐ System Ocen 360°</a>
+            | <a href="{% url 'zadania_view' %}" class="nav-link">📋 Zadania</a>
             {% if current_user.rola == 'admin' or current_user.rola == 'hr' %}
                 | <a href="{% url 'generate_pdf_report' %}" class="nav-link">📄 Raport PDF</a>
             {% endif %}

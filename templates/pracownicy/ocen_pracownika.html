@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oceń pracownika - System Ocen 360°</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .nav-link-header {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        .nav-link-header:hover {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        .rating-form-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: none;
+        }
+        
+        .employee-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            padding: 2rem;
+        }
+        
+        .employee-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 2rem;
+            margin: 0 auto 1rem auto;
+        }
+        
+        .star-rating {
+            display: flex;
+            gap: 0.25rem;
+            margin: 1rem 0;
+        }
+        
+        .star {
+            font-size: 2rem;
+            color: #dee2e6;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .star:hover,
+        .star.active {
+            color: #ffc107;
+            transform: scale(1.1);
+        }
+        
+        .category-card {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .category-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .category-card.selected {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+        
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            border-radius: 25px;
+            padding: 0.75rem 2rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        
+        .btn-cancel {
+            border: 2px solid #6c757d;
+            background: transparent;
+            color: #6c757d;
+            border-radius: 25px;
+            padding: 0.75rem 2rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-cancel:hover {
+            background: #6c757d;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="text-center">
+                <h1><i class="fas fa-star"></i> Oceń Pracownika</h1>
+                <p class="mb-3">Pomóż w rozwoju swojego współpracownika poprzez konstruktywną ocenę</p>
+                <div class="navigation">
+                    <a href="{% url 'oceny_pracownikow' %}" class="nav-link-header">
+                        <i class="fas fa-arrow-left"></i> Powrót do systemu ocen
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card rating-form-card">
+                    <div class="employee-header text-center">
+                        <div class="employee-avatar">
+                            {{ oceniany.imie.0 }}{{ oceniany.nazwisko.0 }}
+                        </div>
+                        <h3 class="mb-1">{{ oceniany.imie }} {{ oceniany.nazwisko }}</h3>
+                        <p class="mb-0">
+                            {% if oceniany.stanowisko %}{{ oceniany.stanowisko }}{% endif %}
+                            {% if oceniany.zespol %} • {{ oceniany.zespol }}{% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="card-body p-4">
+                        <form method="post" id="evaluationForm">
+                            {% csrf_token %}
+                            
+                            <!-- Wybór kategorii -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-tags text-primary"></i> Wybierz kategorię do oceny:
+                                </label>
+                                <div class="row g-3">
+                                    {% for value, display in kategorie %}
+                                    {% if value not in existing_ratings %}
+                                    <div class="col-md-6">
+                                        <div class="category-card p-3" data-category="{{ value }}">
+                                            <input type="radio" name="kategoria" value="{{ value }}" class="d-none" id="cat_{{ value }}">
+                                            <div class="text-center">
+                                                <h5 class="mb-2">{{ display }}</h5>
+                                                <small class="text-muted">Kliknij aby wybrać</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                                
+                                {% if existing_ratings %}
+                                <div class="alert alert-info mt-3">
+                                    <i class="fas fa-info-circle"></i> 
+                                    <strong>Już ocenione kategorie w tym miesiącu:</strong>
+                                    {% for cat in existing_ratings %}
+                                        <span class="badge bg-secondary ms-1">{{ cat|capfirst }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Ocena gwiazdkami -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-star text-warning"></i> Twoja ocena:
+                                </label>
+                                <div class="text-center">
+                                    <div class="star-rating justify-content-center" id="starRating">
+                                        <i class="fas fa-star star" data-rating="1"></i>
+                                        <i class="fas fa-star star" data-rating="2"></i>
+                                        <i class="fas fa-star star" data-rating="3"></i>
+                                        <i class="fas fa-star star" data-rating="4"></i>
+                                        <i class="fas fa-star star" data-rating="5"></i>
+                                    </div>
+                                    <input type="hidden" name="ocena" id="ratingValue" value="5">
+                                    <p class="text-muted mt-2">Kliknij na gwiazdkę aby wybrać ocenę</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Komentarz -->
+                            <div class="mb-4">
+                                <label for="komentarz" class="form-label fw-bold">
+                                    <i class="fas fa-comment text-info"></i> Komentarz (opcjonalnie):
+                                </label>
+                                <textarea name="komentarz" id="komentarz" class="form-control" rows="4" 
+                                          placeholder="Napisz konstruktywny komentarz, który pomoże w rozwoju..."></textarea>
+                                <div class="form-text">Podziel się swoimi spostrzeżeniami, które mogą pomóc w rozwoju zawodowym.</div>
+                            </div>
+                            
+                            <!-- Opcja anonimowości -->
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="anonimowa" id="anonimowa">
+                                    <label class="form-check-label fw-bold" for="anonimowa">
+                                        <i class="fas fa-user-secret text-secondary"></i> Wyślij jako anonimową ocenę
+                                    </label>
+                                </div>
+                                <div class="form-text">Jeśli zaznaczysz tę opcję, Twoje dane nie będą widoczne dla ocenianego.</div>
+                            </div>
+                            
+                            <!-- Przyciski -->
+                            <div class="text-center">
+                                <button type="submit" class="btn btn-submit me-3">
+                                    <i class="fas fa-paper-plane"></i> Wyślij ocenę
+                                </button>
+                                <a href="{% url 'oceny_pracownikow' %}" class="btn btn-cancel">
+                                    <i class="fas fa-times"></i> Anuluj
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Obsługa wyboru kategorii
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Usuń zaznaczenie z wszystkich kart
+                document.querySelectorAll('.category-card').forEach(c => c.classList.remove('selected'));
+                
+                // Zaznacz wybraną kartę
+                this.classList.add('selected');
+                
+                // Zaznacz radio button
+                const radio = this.querySelector('input[type="radio"]');
+                radio.checked = true;
+            });
+        });
+        
+        // Obsługa gwiazdek
+        const stars = document.querySelectorAll('.star');
+        const ratingValue = document.getElementById('ratingValue');
+        let currentRating = 5; // Domyślna ocena
+        
+        // Ustaw domyślne gwiazdki
+        updateStars(currentRating);
+        
+        stars.forEach(star => {
+            star.addEventListener('click', function() {
+                currentRating = parseInt(this.dataset.rating);
+                ratingValue.value = currentRating;
+                updateStars(currentRating);
+            });
+            
+            star.addEventListener('mouseenter', function() {
+                const hoverRating = parseInt(this.dataset.rating);
+                updateStars(hoverRating);
+            });
+        });
+        
+        // Przywróć aktualną ocenę po opuszczeniu myszy
+        document.getElementById('starRating').addEventListener('mouseleave', function() {
+            updateStars(currentRating);
+        });
+        
+        function updateStars(rating) {
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+        
+        // Walidacja formularza
+        document.getElementById('evaluationForm').addEventListener('submit', function(e) {
+            const selectedCategory = document.querySelector('input[name="kategoria"]:checked');
+            
+            if (!selectedCategory) {
+                e.preventDefault();
+                alert('Proszę wybrać kategorię do oceny!');
+                return;
+            }
+            
+            if (!ratingValue.value) {
+                e.preventDefault();
+                alert('Proszę wybrać ocenę!');
+                return;
+            }
+        });
+    </script>
+</body>
+</html>

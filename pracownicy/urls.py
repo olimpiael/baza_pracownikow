@@ -27,6 +27,16 @@ urlpatterns = [
     path('obecnosc/statusy/', views.zarzadzaj_statusy, name='zarzadzaj_statusy'),
     path('obecnosc/ustaw-urlop/', views.ustaw_urlop, name='ustaw_urlop'),
     
+    # === SYSTEM POWIADOMIEŃ ===
+    path('api/notifications/', views.get_notifications, name='get_notifications'),
+    
+    # === SYSTEM ZADAŃ ===
+    path('zadania/', views.zadania_view, name='zadania_view'),
+    
+    # === SYSTEM OCEN 360° ===
+    path('oceny/', views.oceny_pracownikow, name='oceny_pracownikow'),
+    path('oceny/ocen/<int:pracownik_id>/', views.ocen_pracownika, name='ocen_pracownika'),
+    
     # === PROSTY VOICE CHAT ===
     path('voice/', views.voice_room_list, name='voice_room_list'),
     path('voice/<str:room_name>/', views.voice_room, name='voice_room'),

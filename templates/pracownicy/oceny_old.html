@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Ocen 360° - Baza Pracowników</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 1rem 1rem;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        .nav-link:hover {
+            color: white;
+            text-decoration: underline;
+        }
+<style>
+    .rating-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+        transition: transform 0.3s ease;
+    }
+    
+    .rating-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        border-radius: 15px;
+        color: white;
+    }
+    
+    .evaluation-card {
+        background: white;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .evaluation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+    }
+    
+    .star-rating {
+        color: #ffc107;
+        font-size: 1.2em;
+    }
+    
+    .rating-average {
+        font-size: 2em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .employee-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.5em;
+    }
+    
+    .btn-evaluate {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 25px;
+        color: white;
+        padding: 10px 20px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-evaluate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .nav-tabs .nav-link {
+        border-radius: 25px 25px 0 0;
+        border: none;
+        color: #667eea;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .anonymous-badge {
+        background: linear-gradient(135deg, #ffa726 0%, #ff7043 100%);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8em;
+    }
+    
+    .category-rating {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .category-rating:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-1">🎯 System Ocen 360°</h1>
+                    <p class="text-muted">Oceniaj współpracowników i rozwijaj się dzięki ich opiniom</p>
+                </div>
+                <a href="{% url 'lista_pracownikow' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Powrót do listy
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card rating-card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-star fa-3x mb-3"></i>
+                    <h3>{{ otrzymane_oceny.count }}</h3>
+                    <p class="mb-0">Otrzymane oceny</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-3x mb-3"></i>
+                    <h3>{{ do_oceny.count }}</h3>
+                    <p class="mb-0">Do oceny w tym miesiącu</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card rating-card h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x mb-3"></i>
+                    <h3>{{ wystawione_oceny.count }}</h3>
+                    <p class="mb-0">Wystawione oceny</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="ratingsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="to-rate-tab" data-bs-toggle="tab" data-bs-target="#to-rate" type="button" role="tab">
+                <i class="fas fa-star-half-alt"></i> Do oceny ({{ do_oceny.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="received-tab" data-bs-toggle="tab" data-bs-target="#received" type="button" role="tab">
+                <i class="fas fa-inbox"></i> Otrzymane oceny ({{ otrzymane_oceny.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="given-tab" data-bs-toggle="tab" data-bs-target="#given" type="button" role="tab">
+                <i class="fas fa-paper-plane"></i> Wystawione oceny ({{ wystawione_oceny.count }})
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="ratingsTabContent">
+        <!-- Pracownicy do oceny -->
+        <div class="tab-pane fade show active" id="to-rate" role="tabpanel">
+            <div class="row">
+                {% for p in do_oceny %}
+                <div class="col-lg-6 col-xl-4 mb-4">
+                    <div class="card evaluation-card h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="employee-avatar me-3">
+                                    {{ p.imie.0 }}{{ p.nazwisko.0 }}
+                                </div>
+                                <div>
+                                    <h5 class="mb-1">{{ p.imie }} {{ p.nazwisko }}</h5>
+                                    <p class="text-muted mb-0">{{ p.stanowisko.nazwa }}</p>
+                                    <small class="text-muted">{{ p.zespol.nazwa }}</small>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <a href="{% url 'ocen_pracownika' p.id %}" class="btn btn-evaluate">
+                                    <i class="fas fa-star"></i> Oceń pracownika
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-check-circle fa-3x mb-3"></i>
+                        <h4>Wszystko ocenione!</h4>
+                        <p class="mb-0">Oceniłeś już wszystkich dostępnych pracowników w tym miesiącu.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Otrzymane oceny -->
+        <div class="tab-pane fade" id="received" role="tabpanel">
+            <div class="row">
+                {% for ocena in otrzymane_oceny %}
+                <div class="col-lg-6 mb-4">
+                    <div class="card evaluation-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="d-flex align-items-center">
+                                    {% if not ocena.anonimowa %}
+                                    <div class="employee-avatar me-3">
+                                        {{ ocena.oceniajacy.imie.0 }}{{ ocena.oceniajacy.nazwisko.0 }}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ ocena.oceniajacy.imie }} {{ ocena.oceniajacy.nazwisko }}</h6>
+                                        <small class="text-muted">{{ ocena.oceniajacy.stanowisko.nazwa }}</small>
+                                    </div>
+                                    {% else %}
+                                    <div class="employee-avatar me-3">
+                                        <i class="fas fa-user-secret"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">Ocena anonimowa</h6>
+                                        <span class="anonymous-badge">ANONIMOWO</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <div class="rating-average">{{ ocena.ocena }}/5</div>
+                                    <div class="star-rating">{{ ocena.get_stars }}</div>
+                                    <div class="category-badge">{{ ocena.get_kategoria_display }}</div>
+                                </div>
+                            </div>
+                            
+                            
+                            {% if ocena.komentarz %}
+                            <div class="alert alert-light">
+                                <strong>Komentarz:</strong><br>
+                                {{ ocena.komentarz }}
+                            </div>
+                            {% endif %}
+                            
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> {{ ocena.data_utworzenia|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <h4>Brak otrzymanych ocen</h4>
+                        <p class="mb-0">Nie otrzymałeś jeszcze żadnych ocen od współpracowników.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Wystawione oceny -->
+        <div class="tab-pane fade" id="given" role="tabpanel">
+            <div class="row">
+                {% for ocena in wystawione_oceny %}
+                <div class="col-lg-6 mb-4">
+                    <div class="card evaluation-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="employee-avatar me-3">
+                                        {{ ocena.oceniany.imie.0 }}{{ ocena.oceniany.nazwisko.0 }}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ ocena.oceniany.imie }} {{ ocena.oceniany.nazwisko }}</h6>
+                                        <small class="text-muted">{{ ocena.oceniany.stanowisko.nazwa }}</small>
+                                        {% if ocena.anonimowa %}
+                                        <br><span class="anonymous-badge">ANONIMOWO</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="rating-average">{{ ocena.ocena }}/5</div>
+                                    <div class="star-rating">{{ ocena.get_stars }}</div>
+                                    <div class="category-badge">{{ ocena.get_kategoria_display }}</div>
+                                </div>
+                            </div>
+                            
+                            {% if ocena.komentarz %}
+                            <div class="alert alert-light">
+                                <strong>Twój komentarz:</strong><br>
+                                {{ ocena.komentarz }}
+                            </div>
+                            {% endif %}
+                            
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> {{ ocena.data_utworzenia|date:"d.m.Y H:i" }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-paper-plane fa-3x mb-3"></i>
+                        <h4>Brak wystawionych ocen</h4>
+                        <p class="mb-0">Nie wystawi</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Bootstrap tabs initialization
+document.addEventListener('DOMContentLoaded', function() {
+    var triggerTabList = [].slice.call(document.querySelectorAll('#ratingsTab button[data-bs-toggle="tab"]'))
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl)
+    })
+});
+</script>
+{% endblock %}

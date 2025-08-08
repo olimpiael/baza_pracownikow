@@ -1,6 +1,6 @@
 from urllib import request
 from django.utils import timezone
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
@@ -21,7 +21,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import io
-from .models import Pracownik, Zespol, Stanowisko, Rola, DzienPracy
+from .models import Pracownik, Zespol, Stanowisko, Rola, DzienPracy, Zadanie, OcenaPracownika
 from .serializers import CVUploadSerializer, PracownikSerializer, ZespolSerializer
 from .validators import validate_pesel
 
@@ -2071,3 +2071,298 @@ def get_voice_messages(request, room_name):
         'room_name': room_name,
         'active_users': len(active_users.get(room_name, {}))
     })
+
+
+# System powiadomień - urodziny i rocznice
+@login_required
+def get_notifications(request):
+    from datetime import datetime, timedelta
+    
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    week_ahead = today + timedelta(days=7)
+    
+    notifications = []
+    
+    # Urodziny dzisiaj
+    birthdays_today = Pracownik.objects.filter(
+        data_urodzenia__month=today.month,
+        data_urodzenia__day=today.day
+    )
+    for p in birthdays_today:
+        age = today.year - p.data_urodzenia.year
+        notifications.append({
+            'type': 'birthday_today',
+            'icon': '🎂',
+            'title': f'Urodziny dzisiaj!',
+            'message': f'{p.imie} {p.nazwisko} kończy {age} lat',
+            'priority': 'high'
+        })
+    
+    # Urodziny jutro
+    birthdays_tomorrow = Pracownik.objects.filter(
+        data_urodzenia__month=tomorrow.month,
+        data_urodzenia__day=tomorrow.day
+    )
+    for p in birthdays_tomorrow:
+        age = tomorrow.year - p.data_urodzenia.year
+        notifications.append({
+            'type': 'birthday_tomorrow',
+            'icon': '🎈',
+            'title': 'Urodziny jutro',
+            'message': f'{p.imie} {p.nazwisko} będzie obchodzić {age} urodziny',
+            'priority': 'medium'
+        })
+    
+    # Rocznice pracy (dzisiaj)
+    work_anniversaries = Pracownik.objects.filter(
+        data_zatrudnienia__month=today.month,
+        data_zatrudnienia__day=today.day
+    ).exclude(data_zatrudnienia=today)  # Wykluczamy nowych pracowników
+    
+    for p in work_anniversaries:
+        years = today.year - p.data_zatrudnienia.year
+        if years > 0:
+            notifications.append({
+                'type': 'work_anniversary',
+                'icon': '🏆',
+                'title': 'Rocznica pracy!',
+                'message': f'{p.imie} {p.nazwisko} pracuje już {years} {"rok" if years == 1 else "lata" if years < 5 else "lat"}',
+                'priority': 'high'
+            })
+    
+    # Nowi pracownicy (zatrudnieni w ostatnim tygodniu)
+    new_employees = Pracownik.objects.filter(
+        data_zatrudnienia__gte=today - timedelta(days=7),
+        data_zatrudnienia__lt=today
+    )
+    for p in new_employees:
+        days_ago = (today - p.data_zatrudnienia).days
+        notifications.append({
+            'type': 'new_employee',
+            'icon': '👋',
+            'title': 'Nowy pracownik',
+            'message': f'Powitajmy {p.imie} {p.nazwisko} - dołączył {days_ago} dni temu',
+            'priority': 'low'
+        })
+    
+    return JsonResponse({
+        'notifications': notifications,
+        'count': len(notifications)
+    })
+
+
+# System zadań - widok główny
+@login_required
+def zadania_view(request):
+    try:
+        pracownik = Pracownik.objects.get(user=request.user)
+        
+        # Obsługa dodawania zadania
+        if request.method == 'POST' and request.POST.get('action') == 'add_task':
+            if pracownik.rola in ['admin', 'hr', 'kierownik']:
+                tytul = request.POST.get('tytul', '').strip()
+                opis = request.POST.get('opis', '').strip()
+                przypisane_do_id = request.POST.get('przypisane_do')
+                priorytet = request.POST.get('priorytet', 'normalny')
+                termin_str = request.POST.get('termin', '').strip()
+                
+                if tytul and przypisane_do_id:
+                    try:
+                        przypisane_do = Pracownik.objects.get(id=przypisane_do_id)
+                        
+                        # Parsuj termin jeśli podany
+                        termin = None
+                        if termin_str:
+                            from datetime import datetime
+                            termin = datetime.strptime(termin_str, '%Y-%m-%dT%H:%M')
+                        
+                        # Utwórz zadanie
+                        from .models import Zadanie
+                        Zadanie.objects.create(
+                            tytul=tytul,
+                            opis=opis if opis else None,
+                            przypisane_do=przypisane_do,
+                            utworzone_przez=pracownik,
+                            priorytet=priorytet,
+                            termin=termin
+                        )
+                        messages.success(request, f'Zadanie "{tytul}" zostało utworzone i przypisane do {przypisane_do.imie} {przypisane_do.nazwisko}')
+                    except Pracownik.DoesNotExist:
+                        messages.error(request, 'Nieprawidłowy pracownik')
+                    except ValueError:
+                        messages.error(request, 'Nieprawidłowy format daty')
+                else:
+                    messages.error(request, 'Tytuł i przypisanie są wymagane')
+            else:
+                messages.error(request, 'Brak uprawnień do tworzenia zadań')
+        
+        # Obsługa zmiany statusu zadania
+        elif request.method == 'POST' and request.POST.get('action') == 'update_status':
+            zadanie_id = request.POST.get('zadanie_id')
+            new_status = request.POST.get('status')
+            
+            try:
+                from .models import Zadanie
+                zadanie = Zadanie.objects.get(id=zadanie_id)
+                
+                # Sprawdź uprawnienia
+                can_update = (
+                    zadanie.przypisane_do == pracownik or  # Własne zadania
+                    pracownik.rola in ['admin', 'hr'] or  # Admin/HR
+                    (pracownik.rola == 'kierownik' and zadanie.przypisane_do.zespol == pracownik.zespol)  # Kierownik zespołu
+                )
+                
+                if can_update:
+                    zadanie.status = new_status
+                    if new_status == 'wykonane':
+                        zadanie.data_wykonania = timezone.now()
+                    zadanie.save()
+                    messages.success(request, f'Status zadania "{zadanie.tytul}" został zmieniony na {zadanie.get_status_display()}')
+                else:
+                    messages.error(request, 'Brak uprawnień do zmiany tego zadania')
+            except:
+                messages.error(request, 'Zadanie nie istnieje')
+        
+        # Pobierz zadania według uprawnień
+        from .models import Zadanie
+        if pracownik.rola in ['admin', 'hr']:
+            zadania = Zadanie.objects.select_related('przypisane_do', 'utworzone_przez').all()
+            dostepni_pracownicy = Pracownik.objects.all().order_by('nazwisko', 'imie')
+        elif pracownik.rola == 'kierownik' and pracownik.zespol:
+            zespol_pracownicy = Pracownik.objects.filter(zespol=pracownik.zespol)
+            zadania = Zadanie.objects.select_related('przypisane_do', 'utworzone_przez').filter(przypisane_do__in=zespol_pracownicy)
+            dostepni_pracownicy = zespol_pracownicy.order_by('nazwisko', 'imie')
+        else:
+            zadania = Zadanie.objects.select_related('przypisane_do', 'utworzone_przez').filter(przypisane_do=pracownik)
+            dostepni_pracownicy = Pracownik.objects.filter(id=pracownik.id)
+        
+        # Podziel zadania według statusu
+        nowe_zadania = zadania.filter(status='nowe')
+        w_toku_zadania = zadania.filter(status='w_toku')
+        wykonane_zadania = zadania.filter(status='wykonane')
+        
+        context = {
+            'current_user': pracownik,
+            'nowe_zadania': nowe_zadania,
+            'w_toku_zadania': w_toku_zadania,
+            'wykonane_zadania': wykonane_zadania,
+            'dostepni_pracownicy': dostepni_pracownicy,
+            'can_create_tasks': pracownik.rola in ['admin', 'hr', 'kierownik'],
+            'zadania_count': zadania.count(),
+        }
+        return render(request, 'pracownicy/zadania.html', context)
+        
+    except Pracownik.DoesNotExist:
+        return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu - nie jesteś powiązany z żadnym pracownikiem'})
+
+
+@login_required
+def oceny_pracownikow(request):
+    """Widok systemu ocen 360°"""
+    try:
+        pracownik = Pracownik.objects.get(user=request.user)
+        
+        # Pobierz wszystkich pracowników którzy mogą być ocenieni
+        wszyscy_pracownicy = Pracownik.objects.exclude(id=pracownik.id)
+        
+        # Pobierz oceny otrzymane przez zalogowanego pracownika
+        otrzymane_oceny = OcenaPracownika.objects.filter(oceniany=pracownik).order_by('-data_utworzenia')
+        
+        # Pobierz oceny wystawione przez zalogowanego pracownika
+        wystawione_oceny = OcenaPracownika.objects.filter(oceniajacy=pracownik).order_by('-data_utworzenia')
+        
+        # Sprawdź których pracowników już ocenił w tym miesiącu
+        current_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        ocenieni_w_miesiacu = OcenaPracownika.objects.filter(
+            oceniajacy=pracownik,
+            data_utworzenia__gte=current_month
+        ).values_list('oceniany_id', flat=True)
+        
+        # Filtruj pracowników, którzy nie zostali jeszcze ocenieni w tym miesiącu
+        do_oceny = wszyscy_pracownicy.exclude(id__in=ocenieni_w_miesiacu)
+        
+        context = {
+            'pracownik': pracownik,
+            'do_oceny': do_oceny,
+            'otrzymane_oceny': otrzymane_oceny,
+            'wystawione_oceny': wystawione_oceny,
+            'oceny_count': otrzymane_oceny.count(),
+        }
+        return render(request, 'pracownicy/oceny.html', context)
+        
+    except Pracownik.DoesNotExist:
+        return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu - nie jesteś powiązany z żadnym pracownikiem'})
+
+
+@login_required
+def ocen_pracownika(request, pracownik_id):
+    """Widok do wystawiania oceny innemu pracownikowi"""
+    try:
+        oceniajacy = Pracownik.objects.get(user=request.user)
+        oceniany = get_object_or_404(Pracownik, id=pracownik_id)
+        
+        # Sprawdź czy nie próbuje ocenić samego siebie
+        if oceniajacy == oceniany:
+            messages.error(request, 'Nie możesz ocenić samego siebie!')
+            return redirect('oceny_pracownikow')
+        
+        # Pobierz kategorie do oceny
+        kategorie = OcenaPracownika.KATEGORIA_CHOICES
+        
+        # Sprawdź czy już ocenił tego pracownika w jakiejś kategorii w tym miesiącu
+        current_month = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        existing_ratings = OcenaPracownika.objects.filter(
+            oceniajacy=oceniajacy,
+            oceniany=oceniany,
+            data_utworzenia__gte=current_month
+        ).values_list('kategoria', flat=True)
+        
+        if request.method == 'POST':
+            kategoria = request.POST.get('kategoria')
+            ocena = int(request.POST.get('ocena', 1))
+            komentarz = request.POST.get('komentarz', '').strip()
+            anonimowa = request.POST.get('anonimowa') == 'on'
+            
+            # Sprawdź czy już ocenił w tej kategorii w tym miesiącu
+            if kategoria in existing_ratings:
+                messages.warning(request, f'Już oceniłeś {oceniany.imie} {oceniany.nazwisko} w kategorii {dict(kategorie)[kategoria]} w tym miesiącu!')
+                return redirect('oceny_pracownikow')
+            
+            # Walidacja
+            if kategoria not in [k[0] for k in kategorie]:
+                messages.error(request, 'Nieprawidłowa kategoria!')
+                return render(request, 'pracownicy/ocen_pracownika.html', {
+                    'oceniany': oceniany, 'kategorie': kategorie
+                })
+            
+            if not 1 <= ocena <= 5:
+                messages.error(request, 'Ocena musi być w zakresie 1-5!')
+                return render(request, 'pracownicy/ocen_pracownika.html', {
+                    'oceniany': oceniany, 'kategorie': kategorie
+                })
+            
+            # Utwórz ocenę
+            ocena_obj = OcenaPracownika.objects.create(
+                oceniajacy=oceniajacy,
+                oceniany=oceniany,
+                kategoria=kategoria,
+                ocena=ocena,
+                komentarz=komentarz,
+                anonimowa=anonimowa
+            )
+            
+            kategoria_nazwa = dict(kategorie)[kategoria]
+            messages.success(request, f'Pomyślnie oceniono {oceniany.imie} {oceniany.nazwisko} w kategorii {kategoria_nazwa}!')
+            return redirect('oceny_pracownikow')
+        
+        context = {
+            'oceniany': oceniany,
+            'oceniajacy': oceniajacy,
+            'kategorie': kategorie,
+            'existing_ratings': existing_ratings,
+        }
+        return render(request, 'pracownicy/ocen_pracownika.html', context)
+        
+    except Pracownik.DoesNotExist:
+        return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu - nie jesteś powiązany z żadnym pracownikiem'})

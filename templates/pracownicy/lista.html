@@ -420,6 +420,66 @@
             }
         }
         
+        /* Style dla systemu powiadomień */
+        .notification-item {
+            background: white;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            animation: slideInNotification 0.5s ease-out;
+        }
+        
+        .notification-item.birthday_today {
+            border-left-color: #e91e63;
+            background: linear-gradient(to right, #ffeaa7, #fab1a0);
+        }
+        
+        .notification-item.birthday_tomorrow {
+            border-left-color: #ff9800;
+            background: linear-gradient(to right, #a29bfe, #fd79a8);
+        }
+        
+        .notification-item.work_anniversary {
+            border-left-color: #4caf50;
+            background: linear-gradient(to right, #00b894, #00cec9);
+        }
+        
+        .notification-item.new_employee {
+            border-left-color: #2196f3;
+            background: linear-gradient(to right, #74b9ff, #0984e3);
+        }
+        
+        .notification-icon {
+            font-size: 24px;
+            margin-right: 15px;
+            filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+        }
+        
+        .notification-content {
+            flex: 1;
+            color: #333;
+        }
+        
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        
+        .notification-message {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        @keyframes slideInNotification {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
         /* Chat styles */
         .chat-container {
             background: white;
@@ -646,8 +706,18 @@
         
         <!-- Bezpośredni link do pokoju głosowego -->
         <a href="/voice/general/" class="action-button" style="background-color: #6f42c1; text-decoration: none; color: white;">🎤 Pokój Głosowy</a>
+        
+        <!-- System zadań -->
+        <a href="{% url 'zadania_view' %}" class="action-button" style="background-color: #20c997; text-decoration: none; color: white;">📝 Zadania</a>
+        
+        <!-- System ocen 360° -->
+        <a href="{% url 'oceny_pracownikow' %}" class="action-button" style="background-color: #fd7e14; text-decoration: none; color: white;">⭐ Oceny 360°</a>
     </div>
     
+    <!-- System powiadomień -->
+    <div id="notifications-container" style="margin: 20px 0;">
+        <!-- Powiadomienia będą ładowane dynamicznie -->
+    </div>
     <!-- Formularz dodawania pracownika -->
     {% if can_add_employees %}
         <div class="add-form-container" id="addEmployeeForm">
@@ -1583,7 +1653,37 @@
         // Inicjalizuj WebSocket po załadowaniu strony
         document.addEventListener('DOMContentLoaded', function() {
             connectWebSocket();
+            loadNotifications();
         });
+        
+        // System powiadomień
+        function loadNotifications() {
+            fetch('/api/notifications/')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('notifications-container');
+                    container.innerHTML = '';
+                    
+                    if (data.notifications && data.notifications.length > 0) {
+                        data.notifications.forEach(notification => {
+                            const notificationElement = document.createElement('div');
+                            notificationElement.className = `notification-item ${notification.type}`;
+                            notificationElement.innerHTML = `
+                                <div class="notification-icon">${notification.icon}</div>
+                                <div class="notification-content">
+                                    <div class="notification-title">${notification.title}</div>
+                                    <div class="notification-message">${notification.message}</div>
+                                </div>
+                            `;
+                            container.appendChild(notificationElement);
+                        });
+                    }
+                })
+                .catch(error => console.log('Błąd ładowania powiadomień:', error));
+        }
+        
+        // Odświeżaj powiadomienia co 5 minut
+        setInterval(loadNotifications, 5 * 60 * 1000);
     </script>
     </div> <!-- Zamykający div dla margin-top -->
 </body>

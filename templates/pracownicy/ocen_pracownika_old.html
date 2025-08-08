@@ -1,0 +1,681 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Oceń pracownika: {{ oceniany.imie }} {{ oceniany.nazwisko }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rating-form {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .employee-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+    }
+    
+    .category-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+    }
+    
+    .category-card:hover {
+        border-color: #4CAF50;
+        transform: translateY(-2px);
+    }
+    
+    .star {
+        font-size: 2em;
+        color: #ddd;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .star:hover,
+    .star.active {
+        color: #ffd700;
+        transform: scale(1.1);
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        border: none;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 1.1em;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="rating-form">
+                <!-- Header -->
+                <div class="employee-header p-4">
+                    <div class="d-flex align-items-center">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.5em; margin-right: 20px;">
+                            {{ oceniany.imie.0 }}{{ oceniany.nazwisko.0 }}
+                        </div>
+                        <div>
+                            <h2 class="mb-1">{{ oceniany.imie }} {{ oceniany.nazwisko }}</h2>
+                            <p class="mb-1">{{ oceniany.stanowisko.nazwa }}</p>
+                            <small class="opacity-75">{{ oceniany.zespol.nazwa }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form -->
+                <div class="p-4">
+                    {% if existing_ratings %}
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Już ocenione w tym miesiącu:</h6>
+                        {% for kategoria in existing_ratings %}
+                            {% for k, nazwa in kategorie %}
+                                {% if k == kategoria %}
+                                    <span class="badge bg-secondary me-2">{{ nazwa }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Wybór kategorii -->
+                        <div class="category-card">
+                            <h5><i class="fas fa-list"></i> Kategoria</h5>
+                            <select name="kategoria" class="form-select" required>
+                                <option value="">-- Wybierz kategorię --</option>
+                                {% for kod, nazwa in kategorie %}
+                                    {% if kod not in existing_ratings %}
+                                        <option value="{{ kod }}">{{ nazwa }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Ocena -->
+                        <div class="category-card">
+                            <h5><i class="fas fa-star"></i> Ocena (1-5)</h5>
+                            <div class="rating-stars text-center mb-3">
+                                <span class="star" data-value="1">⭐</span>
+                                <span class="star" data-value="2">⭐</span>
+                                <span class="star" data-value="3">⭐</span>
+                                <span class="star" data-value="4">⭐</span>
+                                <span class="star" data-value="5">⭐</span>
+                            </div>
+                            <input type="hidden" name="ocena" id="rating-input" value="1" required>
+                            <div class="text-center">Wybrana ocena: <strong id="rating-display">1</strong>/5</div>
+                        </div>
+
+                        <!-- Komentarz -->
+                        <div class="category-card">
+                            <h5><i class="fas fa-comment"></i> Komentarz (opcjonalnie)</h5>
+                            <textarea name="komentarz" class="form-control" rows="3" 
+                                      placeholder="Dodaj konstruktywny komentarz..."></textarea>
+                        </div>
+
+                        <!-- Anonimowość -->
+                        <div class="category-card">
+                            <div class="form-check">
+                                <input type="checkbox" name="anonimowa" id="anonimowa" class="form-check-input">
+                                <label class="form-check-label" for="anonimowa">
+                                    <i class="fas fa-user-secret"></i> Ocena anonimowa
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-submit">
+                                <i class="fas fa-star"></i> Wyślij Ocenę
+                            </button>
+                            <a href="{% url 'oceny_pracownikow' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Powrót
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const stars = document.querySelectorAll('.star');
+    const ratingInput = document.getElementById('rating-input');
+    const ratingDisplay = document.getElementById('rating-display');
+    let currentRating = 1;
+
+    updateStars(1);
+
+    stars.forEach((star, index) => {
+        star.addEventListener('click', function() {
+            currentRating = parseInt(this.dataset.value);
+            updateStars(currentRating);
+            ratingInput.value = currentRating;
+            ratingDisplay.textContent = currentRating;
+        });
+
+        star.addEventListener('mouseenter', function() {
+            const hoverRating = parseInt(this.dataset.value);
+            highlightStars(hoverRating);
+        });
+
+        star.addEventListener('mouseleave', function() {
+            updateStars(currentRating);
+        });
+    });
+
+    function updateStars(rating) {
+        stars.forEach((star, index) => {
+            star.classList.remove('active');
+            if (index < rating) {
+                star.classList.add('active');
+            }
+        });
+    }
+
+    function highlightStars(rating) {
+        stars.forEach((star, index) => {
+            star.style.color = index < rating ? '#ffed4a' : '#ddd';
+        });
+    }
+});
+</script>
+{% endblock %}
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .star-rating-input input[type="radio"] {
+        display: none;
+    }
+    
+    .star-rating-input label {
+        font-size: 2em;
+        color: #ddd;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+    
+    .star-rating-input label:hover,
+    .star-rating-input label:hover ~ label,
+    .star-rating-input input[type="radio"]:checked ~ label {
+        color: #ffc107;
+    }
+    
+    .category-title {
+        font-weight: 600;
+        color: #667eea;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .category-description {
+        font-size: 0.9em;
+        color: #6c757d;
+        margin-bottom: 15px;
+    }
+    
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 25px;
+        color: white;
+        padding: 15px 40px;
+        font-size: 1.1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-cancel {
+        background: transparent;
+        border: 2px solid #6c757d;
+        border-radius: 25px;
+        color: #6c757d;
+        padding: 13px 40px;
+        font-size: 1.1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-cancel:hover {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .anonymous-section {
+        background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        border: none;
+    }
+    
+    .comment-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .rating-legend {
+        background: #e3f2fd;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 30px;
+        border-left: 4px solid #2196f3;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .legend-stars {
+        color: #ffc107;
+        margin-right: 10px;
+        min-width: 120px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="rating-form">
+                <!-- Header with Employee Info -->
+                <div class="employee-header p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="employee-avatar me-4">
+                            {{ oceniany.imie.0 }}{{ oceniany.nazwisko.0 }}
+                        </div>
+                        <div>
+                            <h2 class="mb-1">{{ oceniany.imie }} {{ oceniany.nazwisko }}</h2>
+                            <p class="mb-1">{{ oceniany.stanowisko.nazwa }}</p>
+                            <small class="opacity-75">{{ oceniany.zespol.nazwa }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Rating Form -->
+                <div class="p-4">
+                    <!-- Legend -->
+                    <div class="rating-legend">
+                        <h6 class="mb-3"><i class="fas fa-info-circle"></i> Skala ocen:</h6>
+                        <div class="legend-item">
+                            <span class="legend-stars">★☆☆☆☆</span>
+                            <span>1 - Bardzo słabo (wymaga znacznej poprawy)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-stars">★★☆☆☆</span>
+                            <span>2 - Słabo (poniżej oczekiwań)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-stars">★★★☆☆</span>
+                            <span>3 - Średnio (spełnia podstawowe oczekiwania)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-stars">★★★★☆</span>
+                            <span>4 - Dobrze (powyżej oczekiwań)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-stars">★★★★★</span>
+                            <span>5 - Bardzo dobrze (znacznie powyżej oczekiwań)</span>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Rating Categories -->
+                        <div class="rating-categories">
+                            <!-- Komunikacja -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-comments"></i>
+                                    <span>Komunikacja</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz umiejętności komunikacyjne tej osoby? (jasność przekazu, słuchanie innych, komunikacja pisemna i ustna)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="komunikacja" id="komunikacja_5" value="5" required>
+                                    <label for="komunikacja_5">★</label>
+                                    <input type="radio" name="komunikacja" id="komunikacja_4" value="4">
+                                    <label for="komunikacja_4">★</label>
+                                    <input type="radio" name="komunikacja" id="komunikacja_3" value="3">
+                                    <label for="komunikacja_3">★</label>
+                                    <input type="radio" name="komunikacja" id="komunikacja_2" value="2">
+                                    <label for="komunikacja_2">★</label>
+                                    <input type="radio" name="komunikacja" id="komunikacja_1" value="1">
+                                    <label for="komunikacja_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Praca zespołowa -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-users"></i>
+                                    <span>Praca zespołowa</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak współpracuje z innymi członkami zespołu? (wsparcie kolegów, udział w dyskusjach, budowanie relacji)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="praca_zespolowa" id="praca_zespolowa_5" value="5" required>
+                                    <label for="praca_zespolowa_5">★</label>
+                                    <input type="radio" name="praca_zespolowa" id="praca_zespolowa_4" value="4">
+                                    <label for="praca_zespolowa_4">★</label>
+                                    <input type="radio" name="praca_zespolowa" id="praca_zespolowa_3" value="3">
+                                    <label for="praca_zespolowa_3">★</label>
+                                    <input type="radio" name="praca_zespolowa" id="praca_zespolowa_2" value="2">
+                                    <label for="praca_zespolowa_2">★</label>
+                                    <input type="radio" name="praca_zespolowa" id="praca_zespolowa_1" value="1">
+                                    <label for="praca_zespolowa_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Kreatywność -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-lightbulb"></i>
+                                    <span>Kreatywność</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz pomysłowość i innowacyjność w podejściu do zadań? (nowe rozwiązania, myślenie nieszablonowe)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="kreatywnosc" id="kreatywnosc_5" value="5" required>
+                                    <label for="kreatywnosc_5">★</label>
+                                    <input type="radio" name="kreatywnosc" id="kreatywnosc_4" value="4">
+                                    <label for="kreatywnosc_4">★</label>
+                                    <input type="radio" name="kreatywnosc" id="kreatywnosc_3" value="3">
+                                    <label for="kreatywnosc_3">★</label>
+                                    <input type="radio" name="kreatywnosc" id="kreatywnosc_2" value="2">
+                                    <label for="kreatywnosc_2">★</label>
+                                    <input type="radio" name="kreatywnosc" id="kreatywnosc_1" value="1">
+                                    <label for="kreatywnosc_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Punktualność -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Punktualność</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz przestrzeganie terminów i punktualność? (dotrzymywanie deadlinów, przybycie na spotkania)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="punktualnosc" id="punktualnosc_5" value="5" required>
+                                    <label for="punktualnosc_5">★</label>
+                                    <input type="radio" name="punktualnosc" id="punktualnosc_4" value="4">
+                                    <label for="punktualnosc_4">★</label>
+                                    <input type="radio" name="punktualnosc" id="punktualnosc_3" value="3">
+                                    <label for="punktualnosc_3">★</label>
+                                    <input type="radio" name="punktualnosc" id="punktualnosc_2" value="2">
+                                    <label for="punktualnosc_2">★</label>
+                                    <input type="radio" name="punktualnosc" id="punktualnosc_1" value="1">
+                                    <label for="punktualnosc_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Zaangażowanie -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-fire"></i>
+                                    <span>Zaangażowanie</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz poziom zaangażowania w pracę i projekty? (motywacja, inicjatywa, poświęcenie)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="zaangazowanie" id="zaangazowanie_5" value="5" required>
+                                    <label for="zaangazowanie_5">★</label>
+                                    <input type="radio" name="zaangazowanie" id="zaangazowanie_4" value="4">
+                                    <label for="zaangazowanie_4">★</label>
+                                    <input type="radio" name="zaangazowanie" id="zaangazowanie_3" value="3">
+                                    <label for="zaangazowanie_3">★</label>
+                                    <input type="radio" name="zaangazowanie" id="zaangazowanie_2" value="2">
+                                    <label for="zaangazowanie_2">★</label>
+                                    <input type="radio" name="zaangazowanie" id="zaangazowanie_1" value="1">
+                                    <label for="zaangazowanie_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Umiejętności techniczne -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-cogs"></i>
+                                    <span>Umiejętności techniczne</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz kompetencje techniczne w danej dziedzinie? (wiedza fachowa, umiejętności praktyczne)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="umiejetnosci_techniczne" id="tech_5" value="5" required>
+                                    <label for="tech_5">★</label>
+                                    <input type="radio" name="umiejetnosci_techniczne" id="tech_4" value="4">
+                                    <label for="tech_4">★</label>
+                                    <input type="radio" name="umiejetnosci_techniczne" id="tech_3" value="3">
+                                    <label for="tech_3">★</label>
+                                    <input type="radio" name="umiejetnosci_techniczne" id="tech_2" value="2">
+                                    <label for="tech_2">★</label>
+                                    <input type="radio" name="umiejetnosci_techniczne" id="tech_1" value="1">
+                                    <label for="tech_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Przywództwo -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-crown"></i>
+                                    <span>Przywództwo</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz umiejętności przywódcze? (inspirowanie innych, podejmowanie decyzji, odpowiedzialność)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="przywodztwo" id="przywodztwo_5" value="5" required>
+                                    <label for="przywodztwo_5">★</label>
+                                    <input type="radio" name="przywodztwo" id="przywodztwo_4" value="4">
+                                    <label for="przywodztwo_4">★</label>
+                                    <input type="radio" name="przywodztwo" id="przywodztwo_3" value="3">
+                                    <label for="przywodztwo_3">★</label>
+                                    <input type="radio" name="przywodztwo" id="przywodztwo_2" value="2">
+                                    <label for="przywodztwo_2">★</label>
+                                    <input type="radio" name="przywodztwo" id="przywodztwo_1" value="1">
+                                    <label for="przywodztwo_1">★</label>
+                                </div>
+                            </div>
+
+                            <!-- Rozwiązywanie problemów -->
+                            <div class="rating-category">
+                                <div class="category-title">
+                                    <i class="fas fa-puzzle-piece"></i>
+                                    <span>Rozwiązywanie problemów</span>
+                                </div>
+                                <div class="category-description">
+                                    Jak oceniasz umiejętność znajdowania rozwiązań dla trudnych sytuacji? (analiza, logiczne myślenie, efektywność)
+                                </div>
+                                <div class="star-rating-input">
+                                    <input type="radio" name="rozwiazywanie_problemow" id="problem_5" value="5" required>
+                                    <label for="problem_5">★</label>
+                                    <input type="radio" name="rozwiazywanie_problemow" id="problem_4" value="4">
+                                    <label for="problem_4">★</label>
+                                    <input type="radio" name="rozwiazywanie_problemow" id="problem_3" value="3">
+                                    <label for="problem_3">★</label>
+                                    <input type="radio" name="rozwiazywanie_problemow" id="problem_2" value="2">
+                                    <label for="problem_2">★</label>
+                                    <input type="radio" name="rozwiazywanie_problemow" id="problem_1" value="1">
+                                    <label for="problem_1">★</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Anonymous Option -->
+                        <div class="anonymous-section">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="czy_anonimowo" id="czy_anonimowo">
+                                <label class="form-check-label fw-bold" for="czy_anonimowo">
+                                    <i class="fas fa-user-secret"></i> Oceń anonimowo
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                Twoja tożsamość nie zostanie ujawniona ocenianemu pracownikowi
+                            </small>
+                        </div>
+
+                        <!-- Comment Section -->
+                        <div class="comment-section">
+                            <h6 class="mb-3"><i class="fas fa-comment"></i> Komentarz (opcjonalny)</h6>
+                            <textarea name="komentarz" class="form-control" rows="4" 
+                                      placeholder="Dodaj szczegółowy komentarz do swojej oceny..."></textarea>
+                            <small class="text-muted">
+                                Możesz dodać konstruktywne uwagi, które pomogą w rozwoju zawodowym
+                            </small>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-center gap-3 mt-4">
+                            <a href="{% url 'oceny_pracownikow' %}" class="btn btn-cancel">
+                                <i class="fas fa-arrow-left"></i> Anuluj
+                            </a>
+                            <button type="submit" class="btn btn-submit">
+                                <i class="fas fa-star"></i> Wyślij ocenę
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update star display on hover and selection
+    const starInputs = document.querySelectorAll('.star-rating-input');
+    
+    starInputs.forEach(function(starGroup) {
+        const labels = starGroup.querySelectorAll('label');
+        const inputs = starGroup.querySelectorAll('input');
+        
+        // Handle star hover effects
+        labels.forEach(function(label, index) {
+            label.addEventListener('mouseenter', function() {
+                for (let i = labels.length - 1; i >= index; i--) {
+                    labels[i].style.color = '#ffc107';
+                }
+            });
+            
+            label.addEventListener('mouseleave', function() {
+                // Reset to selected state
+                const checkedInput = starGroup.querySelector('input:checked');
+                if (checkedInput) {
+                    const checkedIndex = Array.from(inputs).indexOf(checkedInput);
+                    labels.forEach(function(lbl, idx) {
+                        if (idx <= labels.length - 1 - checkedIndex) {
+                            lbl.style.color = '#ffc107';
+                        } else {
+                            lbl.style.color = '#ddd';
+                        }
+                    });
+                } else {
+                    labels.forEach(function(lbl) {
+                        lbl.style.color = '#ddd';
+                    });
+                }
+            });
+        });
+        
+        // Handle star selection
+        inputs.forEach(function(input) {
+            input.addEventListener('change', function() {
+                if (this.checked) {
+                    const value = parseInt(this.value);
+                    labels.forEach(function(lbl, idx) {
+                        if (idx <= labels.length - value) {
+                            lbl.style.color = '#ffc107';
+                        } else {
+                            lbl.style.color = '#ddd';
+                        }
+                    });
+                }
+            });
+        });
+    });
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const requiredInputs = form.querySelectorAll('input[required]');
+        let allFilled = true;
+        
+        const categories = {};
+        requiredInputs.forEach(function(input) {
+            const name = input.name;
+            if (!categories[name]) {
+                categories[name] = false;
+            }
+            if (input.checked) {
+                categories[name] = true;
+            }
+        });
+        
+        for (let category in categories) {
+            if (!categories[category]) {
+                allFilled = false;
+                break;
+            }
+        }
+        
+        if (!allFilled) {
+            e.preventDefault();
+            alert('Proszę wypełnić wszystkie kategorie ocen!');
+        }
+    });
+});
+</script>
+{% endblock %}

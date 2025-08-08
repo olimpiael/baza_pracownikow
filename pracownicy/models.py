@@ -583,3 +583,100 @@ class DzienPracy(models.Model):
             self.czas_pracy = timedelta(0)
         
         self.save()
+
+
+class Zadanie(models.Model):
+    """Model dla systemu zadań i todo list"""
+    STATUS_CHOICES = [
+        ('nowe', 'Nowe'),
+        ('w_toku', 'W trakcie'),
+        ('wykonane', 'Wykonane'),
+        ('anulowane', 'Anulowane'),
+        ('przeterminowane', 'Przeterminowane'),
+    ]
+    
+    PRIORYTET_CHOICES = [
+        ('niski', '🟢 Niski'),
+        ('normalny', '🟡 Normalny'),
+        ('wysoki', '🟠 Wysoki'),
+        ('krytyczny', '🔴 Krytyczny'),
+    ]
+    
+    tytul = models.CharField(max_length=200, verbose_name="Tytuł zadania")
+    opis = models.TextField(blank=True, null=True, verbose_name="Opis")
+    przypisane_do = models.ForeignKey(Pracownik, on_delete=models.CASCADE, related_name='zadania', verbose_name="Przypisane do")
+    utworzone_przez = models.ForeignKey(Pracownik, on_delete=models.SET_NULL, null=True, related_name='utworzone_zadania', verbose_name="Utworzone przez")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='nowe')
+    priorytet = models.CharField(max_length=20, choices=PRIORYTET_CHOICES, default='normalny')
+    termin = models.DateTimeField(null=True, blank=True, verbose_name="Termin wykonania")
+    data_utworzenia = models.DateTimeField(auto_now_add=True)
+    data_modyfikacji = models.DateTimeField(auto_now=True)
+    data_wykonania = models.DateTimeField(null=True, blank=True, verbose_name="Data wykonania")
+    
+    class Meta:
+        verbose_name = "Zadanie"
+        verbose_name_plural = "Zadania"
+        ordering = ['-data_utworzenia']
+        
+    def __str__(self):
+        return f"{self.tytul} - {self.get_status_display()}"
+        
+    def is_overdue(self):
+        """Sprawdza czy zadanie jest przeterminowane"""
+        if self.termin and self.status not in ['wykonane', 'anulowane']:
+            from django.utils import timezone
+            return timezone.now() > self.termin
+        return False
+        
+    def get_priority_color(self):
+        """Zwraca kolor dla priorytetu"""
+        colors = {
+            'niski': '#28a745',
+            'normalny': '#ffc107', 
+            'wysoki': '#fd7e14',
+            'krytyczny': '#dc3545'
+        }
+        return colors.get(self.priorytet, '#6c757d')
+
+
+class OcenaPracownika(models.Model):
+    """Model dla systemu ocen 360° - pracownicy oceniają się nawzajem"""
+    KATEGORIA_CHOICES = [
+        ('komunikacja', '💬 Komunikacja'),
+        ('praca_zespolowa', '🤝 Praca zespołowa'),
+        ('kreatywnosc', '💡 Kreatywność'),
+        ('punktualnosc', '⏰ Punktualność'),
+        ('zaangazowanie', '🔥 Zaangażowanie'),
+        ('umiejetnosci_tech', '💻 Umiejętności techniczne'),
+        ('liderstwo', '👑 Liderstwo'),
+        ('rozwiazywanie_problemow', '🧩 Rozwiązywanie problemów'),
+    ]
+    
+    OCENA_CHOICES = [
+        (1, '1 ⭐ - Wymaga poprawy'),
+        (2, '2 ⭐⭐ - Poniżej oczekiwań'),
+        (3, '3 ⭐⭐⭐ - Dobrze'),
+        (4, '4 ⭐⭐⭐⭐ - Bardzo dobrze'),
+        (5, '5 ⭐⭐⭐⭐⭐ - Doskonale'),
+    ]
+    
+    oceniajacy = models.ForeignKey(Pracownik, on_delete=models.CASCADE, related_name='dane_oceny', verbose_name="Oceniający")
+    oceniany = models.ForeignKey(Pracownik, on_delete=models.CASCADE, related_name='otrzymane_oceny', verbose_name="Oceniany")
+    kategoria = models.CharField(max_length=30, choices=KATEGORIA_CHOICES, verbose_name="Kategoria")
+    ocena = models.IntegerField(choices=OCENA_CHOICES, verbose_name="Ocena")
+    komentarz = models.TextField(blank=True, null=True, verbose_name="Komentarz")
+    data_utworzenia = models.DateTimeField(auto_now_add=True)
+    anonimowa = models.BooleanField(default=False, verbose_name="Ocena anonimowa")
+    
+    class Meta:
+        verbose_name = "Ocena pracownika"
+        verbose_name_plural = "Oceny pracowników"
+        unique_together = ['oceniajacy', 'oceniany', 'kategoria']  # Jedna ocena na kategorię
+        ordering = ['-data_utworzenia']
+    
+    def __str__(self):
+        return f"{self.get_kategoria_display()}: {self.ocena}/5 ({'Anonimowo' if self.anonimowa else self.oceniajacy.imie})"
+    
+    def get_stars(self):
+        """Zwraca gwiazdki jako string"""
+        return '⭐' * self.ocena + '☆' * (5 - self.ocena)
