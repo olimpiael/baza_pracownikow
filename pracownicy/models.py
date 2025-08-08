@@ -680,3 +680,95 @@ class OcenaPracownika(models.Model):
     def get_stars(self):
         """Zwraca gwiazdki jako string"""
         return '⭐' * self.ocena + '☆' * (5 - self.ocena)
+
+
+class RaportAnalityczny(models.Model):
+    """Model dla systemu raportowania i analityki"""
+    TYP_CHOICES = [
+        ('miesięczny', '📅 Miesięczny'),
+        ('kwartalny', '📊 Kwartalny'),
+        ('roczny', '📈 Roczny'),
+        ('custom', '🎯 Niestandardowy'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('generowanie', '⏳ Generowanie'),
+        ('gotowy', '✅ Gotowy'),
+        ('błąd', '❌ Błąd'),
+    ]
+    
+    nazwa = models.CharField(max_length=200, verbose_name="Nazwa raportu")
+    typ = models.CharField(max_length=20, choices=TYP_CHOICES, default='miesięczny')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='generowanie')
+    data_od = models.DateField(verbose_name="Data od")
+    data_do = models.DateField(verbose_name="Data do")
+    utworzony_przez = models.ForeignKey(Pracownik, on_delete=models.CASCADE, verbose_name="Utworzony przez")
+    data_utworzenia = models.DateTimeField(auto_now_add=True)
+    data_aktualizacji = models.DateTimeField(auto_now=True)
+    
+    # Wyniki analiz (JSON)
+    dane_pracownicy = models.JSONField(default=dict, blank=True, verbose_name="Dane o pracownikach")
+    dane_oceny = models.JSONField(default=dict, blank=True, verbose_name="Analiza ocen")
+    dane_zadania = models.JSONField(default=dict, blank=True, verbose_name="Analiza zadań")
+    dane_obecnosc = models.JSONField(default=dict, blank=True, verbose_name="Analiza obecności")
+    
+    class Meta:
+        verbose_name = "Raport analityczny"
+        verbose_name_plural = "Raporty analityczne"
+        ordering = ['-data_utworzenia']
+    
+    def __str__(self):
+        return f"{self.nazwa} ({self.get_typ_display()}) - {self.get_status_display()}"
+
+
+class KPI(models.Model):
+    """Model dla kluczowych wskaźników wydajności"""
+    KATEGORIA_CHOICES = [
+        ('wydajnosc', '🚀 Wydajność'),
+        ('jakość', '⭐ Jakość'),
+        ('obecnosc', '📅 Obecność'),
+        ('zadania', '📋 Zadania'),
+        ('oceny', '💯 Oceny'),
+        ('rozwoj', '📚 Rozwój'),
+    ]
+    
+    nazwa = models.CharField(max_length=200, verbose_name="Nazwa KPI")
+    kategoria = models.CharField(max_length=20, choices=KATEGORIA_CHOICES)
+    opis = models.TextField(blank=True, verbose_name="Opis wskaźnika")
+    cel_wartość = models.FloatField(verbose_name="Wartość docelowa")
+    jednostka = models.CharField(max_length=50, default='%', verbose_name="Jednostka")
+    aktywny = models.BooleanField(default=True)
+    data_utworzenia = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Wskaźnik KPI"
+        verbose_name_plural = "Wskaźniki KPI"
+        ordering = ['kategoria', 'nazwa']
+    
+    def __str__(self):
+        return f"{self.nazwa} (cel: {self.cel_wartość}{self.jednostka})"
+
+
+class WynikKPI(models.Model):
+    """Model przechowujący wyniki KPI dla pracowników"""
+    kpi = models.ForeignKey(KPI, on_delete=models.CASCADE)
+    pracownik = models.ForeignKey(Pracownik, on_delete=models.CASCADE)
+    wartość = models.FloatField(verbose_name="Osiągnięta wartość")
+    data_pomiaru = models.DateField()
+    komentarz = models.TextField(blank=True, verbose_name="Komentarz")
+    data_utworzenia = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Wynik KPI"
+        verbose_name_plural = "Wyniki KPI"
+        ordering = ['-data_pomiaru']
+        unique_together = ['kpi', 'pracownik', 'data_pomiaru']
+    
+    def __str__(self):
+        return f"{self.pracownik} - {self.kpi.nazwa}: {self.wartość}{self.kpi.jednostka}"
+    
+    def procent_celu(self):
+        """Oblicza procent osiągnięcia celu"""
+        if self.kpi.cel_wartość == 0:
+            return 0
+        return round((self.wartość / self.kpi.cel_wartość) * 100, 1)

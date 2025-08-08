@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analityka i Raporty - Baza Pracowników</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        
+        .nav-link-header {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        .nav-link-header:hover {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            border: none;
+            overflow: hidden;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stats-card.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stats-card.success {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+            color: white;
+        }
+        
+        .stats-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .stats-card.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+        }
+        
+        .report-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .employee-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="text-center">
+                <h1><i class="fas fa-chart-line"></i> Analityka i Raporty</h1>
+                <p class="mb-3">Zaawansowana analiza danych i generowanie raportów</p>
+                <div class="navigation">
+                    <a href="{% url 'lista_pracownikow' %}" class="nav-link-header">
+                        <i class="fas fa-users"></i> Pracownicy
+                    </a>
+                    <a href="{% url 'dashboard_page' %}" class="nav-link-header">
+                        <i class="fas fa-chart-bar"></i> Dashboard
+                    </a>
+                    <a href="{% url 'oceny_pracownikow' %}" class="nav-link-header">
+                        <i class="fas fa-star"></i> Oceny
+                    </a>
+                    <a href="{% url 'zadania_view' %}" class="nav-link-header">
+                        <i class="fas fa-tasks"></i> Zadania
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statystyki główne -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card primary h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-3x mb-3"></i>
+                        <h2 class="mb-1">{{ stats.pracownicy_count }}</h2>
+                        <p class="mb-0">Pracowników</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card success h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-star fa-3x mb-3"></i>
+                        <h2 class="mb-1">{{ stats.oceny_count }}</h2>
+                        <p class="mb-0">Ocen wystawionych</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card warning h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-tasks fa-3x mb-3"></i>
+                        <h2 class="mb-1">{{ stats.zadania_count }}</h2>
+                        <p class="mb-0">Zadań utworzonych</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card stats-card info h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-file-alt fa-3x mb-3"></i>
+                        <h2 class="mb-1">{{ stats.raporty_count }}</h2>
+                        <p class="mb-0">Raportów</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Top pracownicy -->
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h4 class="mb-3"><i class="fas fa-trophy text-warning"></i> Top Pracownicy (średnia ocen)</h4>
+                    {% if top_pracownicy %}
+                        {% for item in top_pracownicy %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="employee-avatar me-3">
+                                {{ item.pracownik.imie.0 }}{{ item.pracownik.nazwisko.0 }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ item.pracownik.imie }} {{ item.pracownik.nazwisko }}</h6>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ item.avg_rating|floatformat:0 }}0%"></div>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <strong>{{ item.avg_rating }}/5</strong>
+                                <div class="text-warning">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= item.avg_rating %}⭐{% else %}☆{% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">Brak danych o ocenach</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Akcje szybkie -->
+            <div class="col-lg-6 mb-4">
+                <div class="chart-container">
+                    <h4 class="mb-3"><i class="fas fa-rocket text-primary"></i> Akcje szybkie</h4>
+                    
+                    <div class="d-grid gap-3">
+                        <a href="{% url 'generuj_raport' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i> Wygeneruj nowy raport
+                        </a>
+                        
+                        <a href="#" class="btn btn-outline-success btn-lg" onclick="exportData()">
+                            <i class="fas fa-download me-2"></i> Eksportuj dane
+                        </a>
+                        
+                        <a href="#" class="btn btn-outline-info btn-lg" onclick="scheduleReport()">
+                            <i class="fas fa-clock me-2"></i> Zaplanuj raport
+                        </a>
+                        
+                        <a href="/admin/" class="btn btn-outline-secondary btn-lg" target="_blank">
+                            <i class="fas fa-cogs me-2"></i> Panel administracyjny
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aktywne KPI -->
+        {% if aktywne_kpi %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h4 class="mb-3"><i class="fas fa-bullseye text-success"></i> Aktywne wskaźniki KPI</h4>
+                    <div class="row">
+                        {% for kpi in aktywne_kpi %}
+                        <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="card border-0 bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">{{ kpi.nazwa }}</h6>
+                                    <p class="text-muted mb-2">{{ kpi.get_kategoria_display }}</p>
+                                    <h4 class="text-primary">{{ kpi.cel_wartość }}{{ kpi.jednostka }}</h4>
+                                    <small class="text-muted">Cel do osiągnięcia</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ostatnie raporty -->
+        {% if ostatnie_raporty %}
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h4 class="mb-3"><i class="fas fa-history text-info"></i> Ostatnie raporty</h4>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nazwa raportu</th>
+                                    <th>Typ</th>
+                                    <th>Status</th>
+                                    <th>Period</th>
+                                    <th>Utworzony przez</th>
+                                    <th>Data utworzenia</th>
+                                    <th>Akcje</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for raport in ostatnie_raporty %}
+                                <tr>
+                                    <td><strong>{{ raport.nazwa }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ raport.get_typ_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if raport.status == 'gotowy' %}
+                                            <span class="badge bg-success">{{ raport.get_status_display }}</span>
+                                        {% elif raport.status == 'generowanie' %}
+                                            <span class="badge bg-warning">{{ raport.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ raport.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ raport.data_od }} - {{ raport.data_do }}</td>
+                                    <td>{{ raport.utworzony_przez.imie }} {{ raport.utworzony_przez.nazwisko }}</td>
+                                    <td>{{ raport.data_utworzenia|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        {% if raport.status == 'gotowy' %}
+                                            <a href="{% url 'pokaz_raport' raport.id %}" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-eye"></i> Zobacz
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function exportData() {
+            alert('Funkcja eksportu będzie wkrótce dostępna!');
+        }
+        
+        function scheduleReport() {
+            alert('Funkcja planowania raportów będzie wkrótce dostępna!');
+        }
+    </script>
+</body>
+</html>

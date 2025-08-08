@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pracownik, Zespol, ChatMessage, Rola, Stanowisko, Zadanie, OcenaPracownika
+from .models import Pracownik, Zespol, ChatMessage, Rola, Stanowisko, Zadanie, OcenaPracownika, RaportAnalityczny, KPI, WynikKPI
 
 # Register your models here.
 # Usunięto PracownikInline bo zespoły są teraz CharField choices
@@ -242,5 +242,78 @@ class OcenaPracownikaAdmin(admin.ModelAdmin):
         """Wyświetl ocenę jako gwiazdki"""
         return obj.get_stars()
     get_stars.short_description = 'Gwiazdki'
+
+
+# === SYSTEM ANALITYKI I RAPORTOWANIA ===
+
+@admin.register(RaportAnalityczny)
+class RaportAnalitycznyAdmin(admin.ModelAdmin):
+    list_display = ['nazwa', 'typ', 'status', 'data_od', 'data_do', 'utworzony_przez', 'data_utworzenia']
+    list_filter = ['typ', 'status', 'data_utworzenia']
+    search_fields = ['nazwa', 'utworzony_przez__imie', 'utworzony_przez__nazwisko']
+    readonly_fields = ['data_utworzenia', 'data_aktualizacji']
+    
+    fieldsets = (
+        ('Podstawowe informacje', {
+            'fields': ('nazwa', 'typ', 'status', 'utworzony_przez')
+        }),
+        ('Period raportu', {
+            'fields': ('data_od', 'data_do')
+        }),
+        ('Daty', {
+            'fields': ('data_utworzenia', 'data_aktualizacji'),
+            'classes': ('collapse',)
+        }),
+        ('Dane analityczne', {
+            'fields': ('dane_pracownicy', 'dane_oceny', 'dane_zadania', 'dane_obecnosc'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(KPI)
+class KPIAdmin(admin.ModelAdmin):
+    list_display = ['nazwa', 'kategoria', 'cel_wartość', 'jednostka', 'aktywny', 'data_utworzenia']
+    list_filter = ['kategoria', 'aktywny', 'data_utworzenia']
+    search_fields = ['nazwa', 'opis']
+    readonly_fields = ['data_utworzenia']
+    
+    fieldsets = (
+        ('Definicja KPI', {
+            'fields': ('nazwa', 'kategoria', 'opis')
+        }),
+        ('Parametry', {
+            'fields': ('cel_wartość', 'jednostka', 'aktywny')
+        }),
+        ('Informacje systemowe', {
+            'fields': ('data_utworzenia',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(WynikKPI)
+class WynikKPIAdmin(admin.ModelAdmin):
+    list_display = ['kpi', 'pracownik', 'wartość', 'procent_celu_display', 'data_pomiaru', 'data_utworzenia']
+    list_filter = ['kpi__kategoria', 'data_pomiaru', 'data_utworzenia']
+    search_fields = ['kpi__nazwa', 'pracownik__imie', 'pracownik__nazwisko']
+    readonly_fields = ['data_utworzenia']
+    
+    def procent_celu_display(self, obj):
+        return f"{obj.procent_celu()}%"
+    procent_celu_display.short_description = "% celu"
+    
+    fieldsets = (
+        ('Pomiar KPI', {
+            'fields': ('kpi', 'pracownik', 'wartość', 'data_pomiaru')
+        }),
+        ('Dodatkowe informacje', {
+            'fields': ('komentarz',)
+        }),
+        ('Informacje systemowe', {
+            'fields': ('data_utworzenia',),
+            'classes': ('collapse',)
+        }),
+    )
 
 

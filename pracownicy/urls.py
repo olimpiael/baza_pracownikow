@@ -40,6 +40,11 @@ urlpatterns = [
     path('oceny/', views.oceny_pracownikow, name='oceny_pracownikow'),
     path('oceny/ocen/<int:pracownik_id>/', views.ocen_pracownika, name='ocen_pracownika'),
     
+    # === SYSTEM ANALITYKI I RAPORTOWANIA ===
+    path('analityka/', views.analityka_dashboard, name='analityka_dashboard'),
+    path('analityka/generuj/', views.generuj_raport, name='generuj_raport'),
+    path('analityka/raport/<int:raport_id>/', views.pokaz_raport, name='pokaz_raport'),
+    
     # === PROSTY VOICE CHAT ===
     path('voice/', views.voice_room_list, name='voice_room_list'),
     path('voice/<str:room_name>/', views.voice_room, name='voice_room'),

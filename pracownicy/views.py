@@ -21,7 +21,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import io
-from .models import Pracownik, Zespol, Stanowisko, Rola, DzienPracy, Zadanie, OcenaPracownika
+from .models import Pracownik, Zespol, Stanowisko, Rola, DzienPracy, Zadanie, OcenaPracownika, RaportAnalityczny, KPI, WynikKPI
 from .serializers import CVUploadSerializer, PracownikSerializer, ZespolSerializer
 from .validators import validate_pesel
 
@@ -2404,3 +2404,217 @@ def ocen_pracownika(request, pracownik_id):
         
     except Pracownik.DoesNotExist:
         return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu - nie jesteś powiązany z żadnym pracownikiem'})
+
+
+# === SYSTEM ANALITYKI I RAPORTOWANIA ===
+
+@login_required
+def analityka_dashboard(request):
+    """Główny dashboard analityki"""
+    try:
+        pracownik = Pracownik.objects.get(user=request.user)
+        
+        # Sprawdź uprawnienia
+        if pracownik.rola not in ['admin', 'hr', 'kierownik']:
+            messages.error(request, 'Brak uprawnień do przeglądania analityki!')
+            return redirect('lista_pracownikow')
+        
+        # Statystyki ogólne
+        stats = {
+            'pracownicy_count': Pracownik.objects.count(),
+            'oceny_count': OcenaPracownika.objects.count(),
+            'zadania_count': Zadanie.objects.count(),
+            'raporty_count': RaportAnalityczny.objects.count(),
+        }
+        
+        # Ostatnie raporty
+        ostatnie_raporty = RaportAnalityczny.objects.all()[:5]
+        
+        # Aktywne KPI
+        aktywne_kpi = KPI.objects.filter(aktywny=True)
+        
+        # Top pracownicy według średniej ocen
+        from django.db.models import Avg
+        top_pracownicy = []
+        for p in Pracownik.objects.all()[:10]:
+            avg_rating = OcenaPracownika.objects.filter(oceniany=p).aggregate(
+                avg=Avg('ocena')
+            )['avg']
+            if avg_rating:
+                top_pracownicy.append({
+                    'pracownik': p,
+                    'avg_rating': round(avg_rating, 2)
+                })
+        
+        top_pracownicy.sort(key=lambda x: x['avg_rating'], reverse=True)
+        
+        context = {
+            'pracownik': pracownik,
+            'stats': stats,
+            'ostatnie_raporty': ostatnie_raporty,
+            'aktywne_kpi': aktywne_kpi,
+            'top_pracownicy': top_pracownicy[:5],
+        }
+        
+        return render(request, 'pracownicy/analityka.html', context)
+        
+    except Pracownik.DoesNotExist:
+        return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu'})
+
+
+@login_required
+def generuj_raport(request):
+    """Generowanie nowego raportu"""
+    try:
+        pracownik = Pracownik.objects.get(user=request.user)
+        
+        if pracownik.rola not in ['admin', 'hr', 'kierownik']:
+            messages.error(request, 'Brak uprawnień!')
+            return redirect('analityka_dashboard')
+        
+        if request.method == 'POST':
+            typ = request.POST.get('typ', 'miesięczny')
+            data_od_str = request.POST.get('data_od')
+            data_do_str = request.POST.get('data_do')
+            
+            if data_od_str and data_do_str:
+                from datetime import datetime
+                data_od = datetime.strptime(data_od_str, '%Y-%m-%d').date()
+                data_do = datetime.strptime(data_do_str, '%Y-%m-%d').date()
+                
+                # Utwórz raport
+                raport = RaportAnalityczny.objects.create(
+                    nazwa=f"Raport {typ} {data_od} - {data_do}",
+                    typ=typ,
+                    data_od=data_od,
+                    data_do=data_do,
+                    utworzony_przez=pracownik
+                )
+                
+                # Wygeneruj dane raportu
+                raport = _generuj_dane_raportu(raport)
+                
+                messages.success(request, f'Raport "{raport.nazwa}" został wygenerowany!')
+                return redirect('pokaz_raport', raport_id=raport.id)
+        
+        # GET - pokaż formularz
+        from datetime import date, timedelta
+        dzisiaj = date.today()
+        miesiac_temu = dzisiaj - timedelta(days=30)
+        
+        context = {
+            'pracownik': pracownik,
+            'data_od_default': miesiac_temu,
+            'data_do_default': dzisiaj,
+        }
+        
+        return render(request, 'pracownicy/generuj_raport.html', context)
+        
+    except Pracownik.DoesNotExist:
+        return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu'})
+
+
+def _generuj_dane_raportu(raport):
+    """Helper function to generate report data"""
+    from django.db.models import Count, Avg, Q
+    from datetime import datetime, timedelta
+    
+    data_od = raport.data_od
+    data_do = raport.data_do
+    
+    try:
+        # Analiza pracowników
+        pracownicy_data = {
+            'total': Pracownik.objects.count(),
+            'by_role': {},
+            'by_team': {},
+        }
+        
+        # Grupowanie według ról
+        for rola in Pracownik.ROLA_CHOICES:
+            count = Pracownik.objects.filter(rola=rola[0]).count()
+            if count > 0:
+                pracownicy_data['by_role'][rola[1]] = count
+        
+        # Analiza ocen
+        oceny_data = {
+            'total': OcenaPracownika.objects.filter(
+                data_utworzenia__date__range=[data_od, data_do]
+            ).count(),
+            'average_rating': 0,
+            'by_category': {},
+            'trends': []
+        }
+        
+        avg_rating = OcenaPracownika.objects.filter(
+            data_utworzenia__date__range=[data_od, data_do]
+        ).aggregate(avg=Avg('ocena'))['avg']
+        
+        if avg_rating:
+            oceny_data['average_rating'] = round(avg_rating, 2)
+        
+        # Oceny według kategorii
+        for kategoria in OcenaPracownika.KATEGORIA_CHOICES:
+            avg_cat = OcenaPracownika.objects.filter(
+                kategoria=kategoria[0],
+                data_utworzenia__date__range=[data_od, data_do]
+            ).aggregate(avg=Avg('ocena'))['avg']
+            
+            if avg_cat:
+                oceny_data['by_category'][kategoria[1]] = round(avg_cat, 2)
+        
+        # Analiza zadań
+        zadania_data = {
+            'total': Zadanie.objects.filter(
+                data_utworzenia__date__range=[data_od, data_do]
+            ).count(),
+            'completed': Zadanie.objects.filter(
+                status='gotowe',
+                data_aktualizacji__date__range=[data_od, data_do]
+            ).count(),
+            'in_progress': Zadanie.objects.filter(status='w_trakcie').count(),
+            'pending': Zadanie.objects.filter(status='todo').count(),
+        }
+        
+        if zadania_data['total'] > 0:
+            zadania_data['completion_rate'] = round(
+                (zadania_data['completed'] / zadania_data['total']) * 100, 1
+            )
+        else:
+            zadania_data['completion_rate'] = 0
+        
+        # Zapisz dane do raportu
+        raport.dane_pracownicy = pracownicy_data
+        raport.dane_oceny = oceny_data
+        raport.dane_zadania = zadania_data
+        raport.status = 'gotowy'
+        raport.save()
+        
+    except Exception as e:
+        raport.status = 'błąd'
+        raport.save()
+        print(f"Błąd generowania raportu: {e}")
+    
+    return raport
+
+
+@login_required
+def pokaz_raport(request, raport_id):
+    """Wyświetlanie konkretnego raportu"""
+    try:
+        pracownik = Pracownik.objects.get(user=request.user)
+        raport = get_object_or_404(RaportAnalityczny, id=raport_id)
+        
+        if pracownik.rola not in ['admin', 'hr', 'kierownik']:
+            messages.error(request, 'Brak uprawnień!')
+            return redirect('lista_pracownikow')
+        
+        context = {
+            'pracownik': pracownik,
+            'raport': raport,
+        }
+        
+        return render(request, 'pracownicy/raport_szczegoly.html', context)
+        
+    except Pracownik.DoesNotExist:
+        return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu'})
