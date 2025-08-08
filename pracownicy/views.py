@@ -2158,6 +2158,22 @@ def zadania_view(request):
     try:
         pracownik = Pracownik.objects.get(user=request.user)
         
+        # Check if Zadanie table exists
+        from django.db import connection
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT 1 FROM pracownicy_zadanie LIMIT 1")
+            table_exists = True
+        except Exception:
+            table_exists = False
+        
+        if not table_exists:
+            # Redirect to safe view if table doesn't exist
+            from django.shortcuts import redirect
+            from django.contrib import messages
+            messages.warning(request, 'System zadań jest w trakcie aktualizacji. Użyj tymczasowej wersji.')
+            return redirect('/safe/zadania/')
+        
         # Obsługa dodawania zadania
         if request.method == 'POST' and request.POST.get('action') == 'add_task':
             if pracownik.rola in ['admin', 'hr', 'kierownik']:
@@ -2263,6 +2279,22 @@ def oceny_pracownikow(request):
     try:
         pracownik = Pracownik.objects.get(user=request.user)
         
+        # Check if OcenaPracownika table exists
+        from django.db import connection
+        cursor = connection.cursor()
+        try:
+            cursor.execute("SELECT 1 FROM pracownicy_ocenapracownika LIMIT 1")
+            table_exists = True
+        except Exception:
+            table_exists = False
+        
+        if not table_exists:
+            # Redirect to safe view if table doesn't exist
+            from django.shortcuts import redirect
+            from django.contrib import messages
+            messages.warning(request, 'System ocen jest w trakcie aktualizacji. Użyj tymczasowej wersji.')
+            return redirect('/safe/oceny/')
+        
         # Pobierz wszystkich pracowników którzy mogą być ocenieni
         wszyscy_pracownicy = Pracownik.objects.exclude(id=pracownik.id)
         
@@ -2293,6 +2325,12 @@ def oceny_pracownikow(request):
         
     except Pracownik.DoesNotExist:
         return render(request, 'pracownicy/no_access.html', {'message': 'Brak dostępu - nie jesteś powiązany z żadnym pracownikiem'})
+    except Exception as e:
+        # If any error occurs, redirect to safe view
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        messages.error(request, f'Błąd systemu ocen: {str(e)}')
+        return redirect('/safe/oceny/')
 
 
 @login_required

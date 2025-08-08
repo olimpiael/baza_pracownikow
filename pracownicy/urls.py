@@ -4,6 +4,7 @@ from . import views
 from .views_set_password import set_password_after_social
 from . import debug_views
 from . import safe_views
+from . import migration_views
 
 urlpatterns = [
     path('', views.lista_pracownikow, name='lista_pracownikow'),
@@ -55,4 +56,8 @@ urlpatterns = [
     # === SAFE FALLBACK VIEWS ===
     path('safe/oceny/', safe_views.safe_oceny_view, name='safe_oceny'),
     path('safe/zadania/', safe_views.safe_zadania_view, name='safe_zadania'),
+    
+    # === MIGRATION TOOLS FOR RAILWAY ===
+    path('force-migrate/', migration_views.force_migrate, name='force_migrate'),
+    path('migration-status/', migration_views.migration_status, name='migration_status'),
 ]
