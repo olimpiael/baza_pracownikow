@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>System Zadań - Safe Mode</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .error { background: #ffebee; padding: 20px; border-radius: 5px; color: #c62828; }
+        .info { background: #e3f2fd; padding: 20px; border-radius: 5px; color: #1565c0; }
+        .success { background: #e8f5e8; padding: 20px; border-radius: 5px; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>📋 System Zadań - Tryb Bezpieczny</h1>
+    
+    <div class="info">
+        <strong>Witaj, {{ pracownik.imie }} {{ pracownik.nazwisko }}!</strong><br>
+        System zadań działa w trybie bezpiecznym podczas rozwiązywania problemów technicznych.
+    </div>
+    
+    <h2>Status</h2>
+    <div class="success">
+        ✅ Model Pracownik: OK<br>
+        ✅ Baza danych: Połączenie działa<br>
+        ✅ Uwierzytelnienie: OK<br>
+        ⚠️ Pełny system zadań: W trakcie naprawy
+    </div>
+    
+    <h2>Zespół</h2>
+    {% for emp in wszyscy_pracownicy %}
+    <p>👤 {{ emp.imie }} {{ emp.nazwisko }} 
+       {% if emp.stanowisko %} - {{ emp.stanowisko }}{% endif %}
+       {% if emp.rola %} ({{ emp.get_rola_display }}){% endif %}
+    </p>
+    {% endfor %}
+    
+    <p><a href="/">← Powrót do strony głównej</a></p>
+    <p><a href="/debug/all/">🔧 Informacje debugowe</a></p>
+</body>
+</html>

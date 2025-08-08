@@ -2,6 +2,8 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from . import views
 from .views_set_password import set_password_after_social
+from . import debug_views
+from . import safe_views
 
 urlpatterns = [
     path('', views.lista_pracownikow, name='lista_pracownikow'),
@@ -42,4 +44,15 @@ urlpatterns = [
     path('voice/<str:room_name>/', views.voice_room, name='voice_room'),
     path('voice/<str:room_name>/send/', views.send_voice_message, name='send_voice_message'),
     path('voice/<str:room_name>/messages/', views.get_voice_messages, name='get_voice_messages'),
+    
+    # === DEBUG VIEWS FOR RAILWAY ===
+    path('debug/models/', debug_views.debug_models, name='debug_models'),
+    path('debug/templates/', debug_views.debug_templates, name='debug_templates'),
+    path('debug/views/', debug_views.debug_views, name='debug_views'),
+    path('debug/migrations/', debug_views.debug_migrations, name='debug_migrations'),
+    path('debug/all/', debug_views.debug_all, name='debug_all'),
+    
+    # === SAFE FALLBACK VIEWS ===
+    path('safe/oceny/', safe_views.safe_oceny_view, name='safe_oceny'),
+    path('safe/zadania/', safe_views.safe_zadania_view, name='safe_zadania'),
 ]
